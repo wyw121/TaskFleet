@@ -121,6 +121,9 @@ pub enum AppError {
     #[error("数据超出范围: {0}")]
     OutOfRange(String),
 
+    #[error("请求参数错误: {0}")]
+    BadRequest(String),
+
     // 数据库操作错误
     #[error("数据库连接失败")]
     DatabaseConnection,
@@ -190,6 +193,7 @@ impl AppError {
             AppError::MissingField(_) => VALIDATION_MISSING_FIELD,
             AppError::InvalidFormat(_) => VALIDATION_INVALID_FORMAT,
             AppError::OutOfRange(_) => VALIDATION_OUT_OF_RANGE,
+            AppError::BadRequest(_) => VALIDATION_INVALID_INPUT,
 
             // 数据库
             AppError::DatabaseConnection => DATABASE_CONNECTION_ERROR,
@@ -232,6 +236,7 @@ impl AppError {
             | AppError::MissingField(_)
             | AppError::InvalidFormat(_)
             | AppError::OutOfRange(_)
+            | AppError::BadRequest(_)
             | AppError::InvalidState(_)
             | AppError::OperationNotAllowed(_) => StatusCode::BAD_REQUEST,
 

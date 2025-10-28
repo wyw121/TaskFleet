@@ -4,11 +4,12 @@ use axum::{
     Json,
 };
 use serde::Deserialize;
+use uuid::Uuid;
 
 use crate::{
     errors::AppError,
     middleware::auth::AuthContext,
-    models::{ApiResponse, CompanyStatistics, CreateUserRequest, UpdateUserRequest, UserInfo},
+    models::{ApiResponse, CreateUserRequest, UpdateUserRequest, UserInfo},
     services::user::UserService,
     Config, Database,
 };
@@ -23,26 +24,21 @@ pub struct ListUsersQuery {
 }
 
 pub async fn list_users(
-    State((database, config)): State<AppState>,
+    State((database, _config)): State<AppState>,
     auth_context: AuthContext,
-    Query(query): Query<ListUsersQuery>,
+    Query(_query): Query<ListUsersQuery>,
 ) -> Result<ResponseJson<ApiResponse<Vec<UserInfo>>>, AppError> {
     let user_service = UserService::new(database);
 
     let users = user_service
-        .list_users(
-            &auth_context.user,
-            query.page.unwrap_or(1),
-            query.limit.unwrap_or(20),
-            query.role.as_deref(),
-        )
+        .list_users(&auth_context.user)
         .await?;
 
     Ok(ResponseJson(ApiResponse::success(users)))
 }
 
 pub async fn create_user(
-    State((database, config)): State<AppState>,
+    State((database, _config)): State<AppState>,
     auth_context: AuthContext,
     Json(request): Json<CreateUserRequest>,
 ) -> Result<ResponseJson<ApiResponse<UserInfo>>, AppError> {
@@ -50,19 +46,21 @@ pub async fn create_user(
     tracing::info!("请求用户: {:?}", auth_context.user);
 
     let user_service = UserService::new(database);
-    let user = user_service.create_user(&auth_context.user, request).await?;
+    let user = user_service.create_user(request, &auth_context.user).await?;
 
     tracing::info!("用户创建成功: {:?}", user);
     Ok(ResponseJson(ApiResponse::success(user)))
 }
 
 pub async fn get_user(
-    State((database, config)): State<AppState>,
+    State((database, _config)): State<AppState>,
     auth_context: AuthContext,
     Path(user_id): Path<String>,
 ) -> Result<ResponseJson<ApiResponse<UserInfo>>, AppError> {
     let user_service = UserService::new(database);
-    let user = user_service.get_user(&auth_context.user, &user_id).await?;
+    let user_id = Uuid::parse_str(&user_id)
+        .map_err(|_| AppError::BadRequest("无效的用户ID格式".to_string()))?;
+    let user = user_service.get_user(user_id, &auth_context.user).await?;
 
     Ok(ResponseJson(ApiResponse::success(user)))
 }
@@ -74,42 +72,24 @@ pub async fn update_user(
     Json(request): Json<UpdateUserRequest>,
 ) -> Result<ResponseJson<ApiResponse<UserInfo>>, AppError> {
     let user_service = UserService::new(database);
+    let user_id = Uuid::parse_str(&user_id)
+        .map_err(|_| AppError::BadRequest("无效的用户ID格式".to_string()))?;
     let user = user_service
-        .update_user(&auth_context.user, &user_id, request)
+        .update_user(user_id, request, &auth_context.user)
         .await?;
 
     Ok(ResponseJson(ApiResponse::success(user)))
 }
 
 pub async fn delete_user(
-    State((database, config)): State<AppState>,
+    State((database, _config)): State<AppState>,
     auth_context: AuthContext,
     Path(user_id): Path<String>,
 ) -> Result<ResponseJson<ApiResponse<()>>, AppError> {
     let user_service = UserService::new(database);
-    user_service.delete_user(&auth_context.user, &user_id).await?;
+    let user_id = Uuid::parse_str(&user_id)
+        .map_err(|_| AppError::BadRequest("无效的用户ID格式".to_string()))?;
+    user_service.delete_user(user_id, &auth_context.user).await?;
 
     Ok(ResponseJson(ApiResponse::success(())))
-}
-
-pub async fn get_company_statistics(
-    State((database, _config)): State<AppState>,
-    auth_context: AuthContext,
-) -> Result<ResponseJson<ApiResponse<Vec<CompanyStatistics>>>, AppError> {
-    let user_service = UserService::new(database);
-    let statistics = user_service
-        .get_company_statistics(&auth_context.user)
-        .await?;
-
-    Ok(ResponseJson(ApiResponse::success(statistics)))
-}
-
-pub async fn get_company_names(
-    State((database, _config)): State<AppState>,
-    auth_context: AuthContext,
-) -> Result<ResponseJson<ApiResponse<Vec<String>>>, AppError> {
-    let user_service = UserService::new(database);
-    let company_names = user_service.get_company_names(&auth_context.user).await?;
-
-    Ok(ResponseJson(ApiResponse::success(company_names)))
 }

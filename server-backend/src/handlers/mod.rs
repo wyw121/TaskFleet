@@ -1,10 +1,9 @@
 pub mod auth;
-pub mod billing;
-pub mod company_pricing;
-pub mod devices;
 pub mod docs;
 pub mod health;
-pub mod kpi;
-pub mod reports;
 pub mod users;
-pub mod work_records;
+
+// TaskFleet核心模块（待添加）:
+// pub mod tasks;     // 任务管理
+// pub mod projects;  // 项目管理  
+// pub mod analytics; // 数据统计

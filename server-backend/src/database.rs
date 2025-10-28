@@ -1,4 +1,3 @@
-use crate::models::*;
 use anyhow::Result;
 use sqlx::{Row, SqlitePool};
 

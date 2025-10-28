@@ -3,53 +3,94 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+// ==================== 数据模型说明 ====================
+// 
+// TaskFleet核心数据模型包含以下几大类:
+//
+// 1. User（用户）模型 - 系统用户，包含项目经理和普通员工两种角色
+//    - User: 用户实体
+//    - UserRole: 用户角色枚举
+//    - CreateUserRequest/UpdateUserRequest: 创建/更新用户的DTO
+//    - UserInfo: 用户响应信息
+//
+// 2. Task（任务）模型 - 核心业务实体，任务执行的基本单元
+//    - Task: 任务实体
+//    - TaskStatus: 任务状态枚举 (Pending/InProgress/Completed/Cancelled)
+//    - TaskPriority: 任务优先级枚举 (Low/Medium/High/Urgent)
+//    - CreateTaskRequest/UpdateTaskRequest: 创建/更新任务的DTO
+//    - TaskInfo: 任务响应信息（包含关联数据）
+//
+// 3. Project（项目）模型 - 任务的容器和组织单元
+//    - Project: 项目实体
+//    - ProjectStatus: 项目状态枚举 (Planning/Active/OnHold/Completed/Cancelled)
+//    - CreateProjectRequest/UpdateProjectRequest: 创建/更新项目的DTO
+//    - ProjectInfo: 项目响应信息（包含统计数据）
+//
+// 4. WorkLog（工作记录）模型 - 员工的工作时间跟踪
+//    - WorkLog: 工作记录实体
+//    - CreateWorkLogRequest/UpdateWorkLogRequest: 创建/更新工作记录的DTO
+//    - WorkLogInfo: 工作记录响应信息（包含关联数据）
+//
+// ==================== User（用户）模型 ====================
+
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
-    pub id: i32,
+    pub id: Uuid,
     pub username: String,
-    pub email: Option<String>,
+    pub email: String,
     pub hashed_password: String,
-    pub role: String,
-    pub is_active: Option<i32>, // SQLite 存储为整数
-    pub is_verified: Option<i32>, // SQLite 存储为整数
-    pub parent_id: Option<i32>,
-    pub full_name: Option<String>,
-    pub phone: Option<String>,
-    pub company: Option<String>,
-    pub max_employees: Option<i32>,
-    pub current_employees: Option<i32>,
-    pub balance: Option<f64>,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub role: UserRole,
+    pub full_name: String,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub last_login: Option<DateTime<Utc>>,
 }
 
-impl User {
-    /// 将整数类型的is_active转换为布尔值
-    pub fn is_active_bool(&self) -> bool {
-        self.is_active.unwrap_or(0) != 0
-    }
-    
-    /// 将整数类型的is_verified转换为布尔值
-    pub fn is_verified_bool(&self) -> bool {
-        self.is_verified.unwrap_or(0) != 0
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, PartialEq)]
 #[sqlx(type_name = "TEXT")]
 #[sqlx(rename_all = "snake_case")]
 pub enum UserRole {
-    SystemAdmin,
-    UserAdmin,
-    Employee,
+    ProjectManager,  // 项目管理员 - 可以创建项目、分配任务、查看统计
+    Employee,        // 普通员工 - 只能查看和更新自己的任务
+}
+
+impl UserRole {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            UserRole::ProjectManager => "project_manager",
+            UserRole::Employee => "employee",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "project_manager" => Some(UserRole::ProjectManager),
+            "employee" => Some(UserRole::Employee),
+            // 兼容旧的字符串格式
+            "user_admin" => Some(UserRole::ProjectManager),
+            "system_admin" => Some(UserRole::ProjectManager),
+            _ => None,
+        }
+    }
+}
+
+impl PartialEq<&str> for UserRole {
+    fn eq(&self, other: &&str) -> bool {
+        match (self, *other) {
+            (UserRole::ProjectManager, "project_manager") => true,
+            (UserRole::ProjectManager, "user_admin") => true,     // 兼容
+            (UserRole::ProjectManager, "system_admin") => true,   // 兼容
+            (UserRole::Employee, "employee") => true,
+            _ => false,
+        }
+    }
 }
 
 impl std::fmt::Display for UserRole {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UserRole::SystemAdmin => write!(f, "system_admin"),
-            UserRole::UserAdmin => write!(f, "user_admin"),
+            UserRole::ProjectManager => write!(f, "project_manager"),
             UserRole::Employee => write!(f, "employee"),
         }
     }
@@ -60,14 +101,11 @@ pub struct CreateUserRequest {
     #[validate(length(min = 3, max = 50))]
     pub username: String,
     #[validate(email)]
-    pub email: Option<String>,
+    pub email: String,
     #[validate(length(min = 6))]
     pub password: String,
-    pub role: String,
-    pub phone: Option<String>,
-    pub full_name: Option<String>,
-    pub company: Option<String>,
-    pub max_employees: Option<i32>,
+    pub role: UserRole,
+    pub full_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
@@ -76,11 +114,8 @@ pub struct UpdateUserRequest {
     pub username: Option<String>,
     #[validate(email)]
     pub email: Option<String>,
-    pub password: Option<String>, // 可选，只有提供时才更新
-    pub phone: Option<String>,
+    pub password: Option<String>,
     pub full_name: Option<String>,
-    pub company: Option<String>,
-    pub max_employees: Option<i32>,
     pub is_active: Option<bool>,
 }
 
@@ -100,47 +135,26 @@ pub struct LoginResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct UserInfo {
-    pub id: i32,
+    pub id: Uuid,
     pub username: String,
-    pub email: Option<String>,
-    pub full_name: Option<String>,
-    pub phone: Option<String>,
-    pub company: Option<String>,
-    pub role: String,
+    pub email: String,
+    pub full_name: String,
+    pub role: UserRole,
     pub is_active: bool,
-    pub is_verified: bool,
-    pub current_employees: i32,
-    pub max_employees: i32,
-    pub balance: f64,
-    pub parent_id: Option<i32>,
     pub created_at: String,
     pub last_login: Option<String>,
 }
 
 impl From<User> for UserInfo {
     fn from(user: User) -> Self {
-        // 先获取布尔值，避免借用检查问题
-        let is_active = user.is_active_bool();
-        let is_verified = user.is_verified_bool();
-        
         Self {
             id: user.id,
             username: user.username,
             email: user.email,
             full_name: user.full_name,
-            phone: user.phone,
-            company: user.company,
             role: user.role,
-            is_active,
-            is_verified,
-            current_employees: user.current_employees.unwrap_or(0),
-            max_employees: user.max_employees.unwrap_or(0),
-            balance: user.balance.unwrap_or(0.0),
-            parent_id: user.parent_id,
-            created_at: user
-                .created_at
-                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
-                .unwrap_or_default(),
+            is_active: user.is_active,
+            created_at: user.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
             last_login: user
                 .last_login
                 .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string()),
@@ -148,190 +162,7 @@ impl From<User> for UserInfo {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct Device {
-    pub id: String,
-    pub device_name: String,
-    pub device_type: String,
-    pub adb_id: Option<String>,
-    pub status: String,
-    pub user_id: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct CreateDeviceRequest {
-    #[validate(length(min = 1))]
-    pub device_name: String,
-    pub device_type: String,
-    pub adb_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct WorkRecord {
-    pub id: String,
-    pub user_id: String,
-    pub device_id: String,
-    pub platform: String,
-    pub action_type: String,
-    pub target_count: i32,
-    pub completed_count: i32,
-    pub status: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct CreateWorkRecordRequest {
-    pub device_id: String,
-    pub platform: String,
-    pub action_type: String,
-    pub target_count: i32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct BillingRecord {
-    pub id: String,
-    pub user_id: String,
-    pub amount: f64,
-    pub billing_type: String,
-    pub description: Option<String>,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct CreateBillingRecordRequest {
-    pub user_id: String,
-    pub amount: f64,
-    pub billing_type: String,
-    pub description: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct PricingRule {
-    pub id: i32,
-    pub rule_name: String,
-    pub billing_type: String,
-    pub unit_price: f64,
-    pub is_active: bool,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct CreatePricingRuleRequest {
-    #[validate(length(min = 1, max = 100))]
-    pub rule_name: String,
-    #[validate(length(min = 1, max = 50))]
-    pub billing_type: String,
-    #[validate(range(min = 0.0))]
-    pub unit_price: f64,
-}
-
-// 公司收费计划
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct CompanyPricingPlan {
-    pub id: i32,
-    pub company_name: String,
-    pub plan_name: String,
-    pub employee_monthly_fee: f64,
-    pub is_active: bool,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct CreateCompanyPricingPlanRequest {
-    #[validate(length(min = 1, max = 100))]
-    pub company_name: String,
-    #[validate(length(min = 1, max = 100))]
-    pub plan_name: String,
-    #[validate(range(min = 0.0))]
-    pub employee_monthly_fee: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct UpdateCompanyPricingPlanRequest {
-    #[validate(length(min = 1, max = 100))]
-    pub plan_name: Option<String>,
-    #[validate(range(min = 0.0))]
-    pub employee_monthly_fee: Option<f64>,
-    pub is_active: Option<bool>,
-}
-
-// 公司操作收费规则
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct CompanyOperationPricing {
-    pub id: i32,
-    pub company_name: String,
-    pub platform: String, // xiaohongshu, douyin
-    pub operation_type: String, // follow, like, favorite, comment
-    pub unit_price: f64,
-    pub is_active: bool,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct CreateCompanyOperationPricingRequest {
-    #[validate(length(min = 1, max = 100))]
-    pub company_name: String,
-    #[validate(length(min = 1, max = 50))]
-    pub platform: String,
-    #[validate(length(min = 1, max = 50))]
-    pub operation_type: String,
-    #[validate(range(min = 0.0))]
-    pub unit_price: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct UpdateCompanyOperationPricingRequest {
-    #[validate(range(min = 0.0))]
-    pub unit_price: Option<f64>,
-    pub is_active: Option<bool>,
-}
-
-// 我的计费信息响应结构体
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MyBillingInfo {
-    pub balance: f64,
-    pub total_spent: f64,
-    pub employee_count: i32,
-    pub monthly_fee: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct KpiStats {
-    pub total_actions: i64,
-    pub successful_actions: i64,
-    pub failed_actions: i64,
-    pub success_rate: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct UserStats {
-    pub user_id: String,
-    pub username: String,
-    pub total_actions: i64,
-    pub successful_actions: i64,
-    pub success_rate: f64,
-    pub last_activity: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct CompanyStatistics {
-    pub company_name: String,
-    pub user_admin_id: i32,
-    pub user_admin_name: String,
-    pub total_employees: i32,
-    pub total_follows: i64,
-    pub today_follows: i64,
-    pub total_billing_amount: f64,
-    pub unpaid_amount: f64,
-    pub balance: f64,
-}
-
+// 通用API响应结构体
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiResponse<T> {
     pub success: bool,
@@ -356,3 +187,415 @@ impl<T> ApiResponse<T> {
         }
     }
 }
+
+// ============================================================================
+// TaskFleet 核心业务模型
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Task（任务）模型
+// ----------------------------------------------------------------------------
+
+/// 任务状态
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[sqlx(type_name = "TEXT")]
+#[sqlx(rename_all = "snake_case")]
+pub enum TaskStatus {
+    Pending,      // 待处理 - 任务已创建，等待分配或开始
+    InProgress,   // 进行中 - 任务正在执行
+    Completed,    // 已完成 - 任务已完成
+    Cancelled,    // 已取消 - 任务被取消
+}
+
+impl TaskStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TaskStatus::Pending => "pending",
+            TaskStatus::InProgress => "in_progress",
+            TaskStatus::Completed => "completed",
+            TaskStatus::Cancelled => "cancelled",
+        }
+    }
+}
+
+impl std::fmt::Display for TaskStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+/// 任务优先级
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[sqlx(type_name = "TEXT")]
+#[sqlx(rename_all = "snake_case")]
+pub enum TaskPriority {
+    Low,       // 低优先级
+    Medium,    // 中优先级
+    High,      // 高优先级
+    Urgent,    // 紧急
+}
+
+impl TaskPriority {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TaskPriority::Low => "low",
+            TaskPriority::Medium => "medium",
+            TaskPriority::High => "high",
+            TaskPriority::Urgent => "urgent",
+        }
+    }
+}
+
+impl std::fmt::Display for TaskPriority {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+/// 任务主模型
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Task {
+    pub id: Uuid,
+    pub title: String,
+    pub description: String,
+    pub status: TaskStatus,
+    pub priority: TaskPriority,
+    
+    // 关联关系
+    pub project_id: Option<Uuid>,        // 所属项目（可选）
+    pub assigned_to: Option<Uuid>,        // 分配给的员工（可选）
+    pub created_by: Uuid,                 // 创建者
+    
+    // 时间管理
+    pub due_date: Option<DateTime<Utc>>, // 截止日期（可选）
+    pub estimated_hours: Option<f64>,     // 预估工时（小时）
+    pub actual_hours: Option<f64>,        // 实际工时（小时）
+    
+    // 元数据
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>, // 完成时间
+}
+
+/// 创建任务请求
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct CreateTaskRequest {
+    #[validate(length(min = 1, max = 200))]
+    pub title: String,
+    
+    #[validate(length(max = 2000))]
+    pub description: String,
+    
+    pub priority: TaskPriority,
+    pub project_id: Option<Uuid>,
+    pub assigned_to: Option<Uuid>,
+    pub due_date: Option<DateTime<Utc>>,
+    pub estimated_hours: Option<f64>,
+}
+
+/// 更新任务请求
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct UpdateTaskRequest {
+    #[validate(length(min = 1, max = 200))]
+    pub title: Option<String>,
+    
+    #[validate(length(max = 2000))]
+    pub description: Option<String>,
+    
+    pub status: Option<TaskStatus>,
+    pub priority: Option<TaskPriority>,
+    pub assigned_to: Option<Uuid>,
+    pub due_date: Option<DateTime<Utc>>,
+    pub estimated_hours: Option<f64>,
+}
+
+/// 任务信息响应（包含额外的计算字段）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskInfo {
+    pub id: Uuid,
+    pub title: String,
+    pub description: String,
+    pub status: TaskStatus,
+    pub priority: TaskPriority,
+    
+    pub project_id: Option<Uuid>,
+    pub project_name: Option<String>,      // 项目名称（关联查询）
+    
+    pub assigned_to: Option<Uuid>,
+    pub assigned_to_name: Option<String>,  // 分配员工姓名（关联查询）
+    
+    pub created_by: Uuid,
+    pub created_by_name: String,           // 创建者姓名（关联查询）
+    
+    pub due_date: Option<String>,
+    pub estimated_hours: Option<f64>,
+    pub actual_hours: Option<f64>,
+    
+    pub created_at: String,
+    pub updated_at: String,
+    pub completed_at: Option<String>,
+}
+
+impl From<Task> for TaskInfo {
+    fn from(task: Task) -> Self {
+        Self {
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            status: task.status,
+            priority: task.priority,
+            project_id: task.project_id,
+            project_name: None,
+            assigned_to: task.assigned_to,
+            assigned_to_name: None,
+            created_by: task.created_by,
+            created_by_name: String::new(),
+            due_date: task.due_date.map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string()),
+            estimated_hours: task.estimated_hours,
+            actual_hours: task.actual_hours,
+            created_at: task.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+            updated_at: task.updated_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+            completed_at: task.completed_at.map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string()),
+        }
+    }
+}
+
+// ==================== PROJECT（项目）模型 ====================
+
+/// 项目状态
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, PartialEq)]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+pub enum ProjectStatus {
+    /// 规划中
+    Planning,
+    /// 进行中
+    Active,
+    /// 已暂停
+    OnHold,
+    /// 已完成
+    Completed,
+    /// 已取消
+    Cancelled,
+}
+
+/// 项目模型
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Project {
+    /// 项目ID
+    pub id: Uuid,
+    /// 项目名称
+    pub name: String,
+    /// 项目描述
+    pub description: Option<String>,
+    /// 项目状态
+    pub status: ProjectStatus,
+    /// 项目经理ID
+    pub manager_id: Uuid,
+    /// 项目开始日期
+    pub start_date: Option<chrono::NaiveDate>,
+    /// 项目结束日期
+    pub end_date: Option<chrono::NaiveDate>,
+    /// 预算（单位：元）
+    pub budget: Option<f64>,
+    /// 实际支出（单位：元）
+    pub actual_cost: Option<f64>,
+    /// 创建时间
+    pub created_at: chrono::NaiveDateTime,
+    /// 更新时间
+    pub updated_at: chrono::NaiveDateTime,
+}
+
+/// 创建项目请求
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateProjectRequest {
+    /// 项目名称（必填，2-100字符）
+    #[validate(length(min = 2, max = 100, message = "项目名称必须在2-100个字符之间"))]
+    pub name: String,
+    
+    /// 项目描述（可选，最多1000字符）
+    #[validate(length(max = 1000, message = "项目描述不能超过1000个字符"))]
+    pub description: Option<String>,
+    
+    /// 项目状态（可选，默认Planning）
+    pub status: Option<ProjectStatus>,
+    
+    /// 项目经理ID（必填）
+    pub manager_id: Uuid,
+    
+    /// 项目开始日期（可选）
+    pub start_date: Option<chrono::NaiveDate>,
+    
+    /// 项目结束日期（可选）
+    pub end_date: Option<chrono::NaiveDate>,
+    
+    /// 预算（可选，必须为正数）
+    #[validate(range(min = 0.0, message = "预算必须为正数"))]
+    pub budget: Option<f64>,
+}
+
+/// 更新项目请求
+#[derive(Debug, Deserialize, Validate)]
+pub struct UpdateProjectRequest {
+    /// 项目名称（可选，2-100字符）
+    #[validate(length(min = 2, max = 100, message = "项目名称必须在2-100个字符之间"))]
+    pub name: Option<String>,
+    
+    /// 项目描述（可选，最多1000字符）
+    #[validate(length(max = 1000, message = "项目描述不能超过1000个字符"))]
+    pub description: Option<String>,
+    
+    /// 项目状态（可选）
+    pub status: Option<ProjectStatus>,
+    
+    /// 项目经理ID（可选）
+    pub manager_id: Option<Uuid>,
+    
+    /// 项目开始日期（可选）
+    pub start_date: Option<chrono::NaiveDate>,
+    
+    /// 项目结束日期（可选）
+    pub end_date: Option<chrono::NaiveDate>,
+    
+    /// 预算（可选，必须为正数）
+    #[validate(range(min = 0.0, message = "预算必须为正数"))]
+    pub budget: Option<f64>,
+    
+    /// 实际支出（可选，必须为正数）
+    #[validate(range(min = 0.0, message = "实际支出必须为正数"))]
+    pub actual_cost: Option<f64>,
+}
+
+/// 项目信息（包含关联数据）
+#[derive(Debug, Serialize)]
+pub struct ProjectInfo {
+    pub id: Uuid,
+    pub name: String,
+    pub description: Option<String>,
+    pub status: ProjectStatus,
+    pub manager_id: Uuid,
+    pub manager_name: Option<String>,  // 项目经理姓名
+    pub start_date: Option<chrono::NaiveDate>,
+    pub end_date: Option<chrono::NaiveDate>,
+    pub budget: Option<f64>,
+    pub actual_cost: Option<f64>,
+    pub task_count: Option<i64>,       // 任务总数
+    pub completed_tasks: Option<i64>,  // 已完成任务数
+    pub progress: Option<f64>,         // 进度百分比
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
+}
+
+impl From<Project> for ProjectInfo {
+    fn from(project: Project) -> Self {
+        Self {
+            id: project.id,
+            name: project.name,
+            description: project.description,
+            status: project.status,
+            manager_id: project.manager_id,
+            manager_name: None,
+            start_date: project.start_date,
+            end_date: project.end_date,
+            budget: project.budget,
+            actual_cost: project.actual_cost,
+            task_count: None,
+            completed_tasks: None,
+            progress: None,
+            created_at: project.created_at,
+            updated_at: project.updated_at,
+        }
+    }
+}
+
+// ==================== WORKLOG（工作记录）模型 ====================
+
+/// 工作记录模型
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct WorkLog {
+    /// 工作记录ID
+    pub id: Uuid,
+    /// 关联任务ID
+    pub task_id: Uuid,
+    /// 员工ID
+    pub user_id: Uuid,
+    /// 工作描述
+    pub description: Option<String>,
+    /// 工作时长（小时）
+    pub hours: f64,
+    /// 工作日期
+    pub work_date: chrono::NaiveDate,
+    /// 创建时间
+    pub created_at: chrono::NaiveDateTime,
+    /// 更新时间
+    pub updated_at: chrono::NaiveDateTime,
+}
+
+/// 创建工作记录请求
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateWorkLogRequest {
+    /// 关联任务ID（必填）
+    pub task_id: Uuid,
+    
+    /// 员工ID（必填）
+    pub user_id: Uuid,
+    
+    /// 工作描述（可选，最多500字符）
+    #[validate(length(max = 500, message = "工作描述不能超过500个字符"))]
+    pub description: Option<String>,
+    
+    /// 工作时长（必填，必须大于0且不超过24小时）
+    #[validate(range(min = 0.1, max = 24.0, message = "工作时长必须在0.1-24小时之间"))]
+    pub hours: f64,
+    
+    /// 工作日期（可选，默认为今天）
+    pub work_date: Option<chrono::NaiveDate>,
+}
+
+/// 更新工作记录请求
+#[derive(Debug, Deserialize, Validate)]
+pub struct UpdateWorkLogRequest {
+    /// 工作描述（可选，最多500字符）
+    #[validate(length(max = 500, message = "工作描述不能超过500个字符"))]
+    pub description: Option<String>,
+    
+    /// 工作时长（可选，必须大于0且不超过24小时）
+    #[validate(range(min = 0.1, max = 24.0, message = "工作时长必须在0.1-24小时之间"))]
+    pub hours: Option<f64>,
+    
+    /// 工作日期（可选）
+    pub work_date: Option<chrono::NaiveDate>,
+}
+
+/// 工作记录信息（包含关联数据）
+#[derive(Debug, Serialize)]
+pub struct WorkLogInfo {
+    pub id: Uuid,
+    pub task_id: Uuid,
+    pub task_title: Option<String>,    // 任务标题
+    pub user_id: Uuid,
+    pub user_name: Option<String>,     // 员工姓名
+    pub description: Option<String>,
+    pub hours: f64,
+    pub work_date: String,              // 格式化为YYYY-MM-DD
+    pub created_at: String,             // 格式化为YYYY-MM-DD HH:MM:SS
+    pub updated_at: String,             // 格式化为YYYY-MM-DD HH:MM:SS
+}
+
+impl From<WorkLog> for WorkLogInfo {
+    fn from(log: WorkLog) -> Self {
+        Self {
+            id: log.id,
+            task_id: log.task_id,
+            task_title: None,
+            user_id: log.user_id,
+            user_name: None,
+            description: log.description,
+            hours: log.hours,
+            work_date: log.work_date.format("%Y-%m-%d").to_string(),
+            created_at: log.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+            updated_at: log.updated_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+        }
+    }
+}
+
+

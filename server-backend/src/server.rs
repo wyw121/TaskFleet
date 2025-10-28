@@ -69,146 +69,27 @@ pub async fn create_app(database: Database, config: Config) -> Router {
         .route("/api/v1/users/:id", get(handlers::users::get_user))
         .route("/api/v1/users/:id", put(handlers::users::update_user))
         .route("/api/v1/users/:id", delete(handlers::users::delete_user))
-        .route(
-            "/api/v1/users/companies/statistics",
-            get(handlers::users::get_company_statistics),
-        )
-        .route(
-            "/api/v1/users/companies/names",
-            get(handlers::users::get_company_names),
-        )
-        // 工作记录
-        .route(
-            "/api/v1/work-records",
-            get(handlers::work_records::list_work_records),
-        )
-        .route(
-            "/api/v1/work-records",
-            post(handlers::work_records::create_work_record),
-        )
-        .route(
-            "/api/v1/work-records/:id",
-            get(handlers::work_records::get_work_record),
-        )
-        // 设备管理
-        .route("/api/v1/devices", get(handlers::devices::list_devices))
-        .route("/api/v1/devices", post(handlers::devices::create_device))
-        .route("/api/v1/devices/:id", get(handlers::devices::get_device))
-        .route("/api/v1/devices/:id", put(handlers::devices::update_device))
-        .route(
-            "/api/v1/devices/:id",
-            delete(handlers::devices::delete_device),
-        )
-        // KPI统计
-        .route("/api/v1/kpi/stats", get(handlers::kpi::get_kpi_stats))
-        .route("/api/v1/kpi/user-stats", get(handlers::kpi::get_user_stats))
-        // 计费
-        .route(
-            "/api/v1/billing/records",
-            get(handlers::billing::list_billing_records),
-        )
-        .route(
-            "/api/v1/billing/records",
-            post(handlers::billing::create_billing_record),
-        )
-        .route(
-            "/api/v1/billing/my-billing-info",
-            get(handlers::billing::get_my_billing_info),
-        )
-        .route(
-            "/api/v1/billing/user-billing-info/:id",
-            get(handlers::billing::get_user_billing_info),
-        )
-        // 前端兼容性路由 (Python API fallback)
-        .route(
-            "/api/v1/billing/billing-records/",
-            get(handlers::billing::list_billing_records),
-        )
-        .route(
-            "/api/v1/billing/billing-records/",
-            post(handlers::billing::create_billing_record),
-        )
-        .route(
-            "/api/v1/billing/pricing-rules",
-            get(handlers::billing::list_pricing_rules),
-        )
-        .route(
-            "/api/v1/billing/pricing-rules",
-            post(handlers::billing::create_pricing_rule),
-        )
-        // 前端兼容性路由 (Python API fallback)
-        .route(
-            "/api/v1/billing/pricing-rules/",
-            get(handlers::billing::list_pricing_rules),
-        )
-        .route(
-            "/api/v1/billing/pricing-rules/",
-            post(handlers::billing::create_pricing_rule),
-        )
-        .route(
-            "/api/v1/billing/pricing-rules/:id",
-            put(handlers::billing::update_pricing_rule),
-        )
-        .route(
-            "/api/v1/billing/pricing-rules/:id",
-            delete(handlers::billing::delete_pricing_rule),
-        )
-        // 公司收费计划管理
-        .route(
-            "/api/v1/company-pricing/plans",
-            get(handlers::company_pricing::list_company_pricing_plans),
-        )
-        .route(
-            "/api/v1/company-pricing/plans",
-            post(handlers::company_pricing::create_company_pricing_plan),
-        )
-        .route(
-            "/api/v1/company-pricing/plans/by-company/:company_name",
-            get(handlers::company_pricing::get_company_pricing_plan),
-        )
-        .route(
-            "/api/v1/company-pricing/plans/by-id/:plan_id",
-            put(handlers::company_pricing::update_company_pricing_plan),
-        )
-        .route(
-            "/api/v1/company-pricing/plans/by-id/:plan_id",
-            delete(handlers::company_pricing::delete_company_pricing_plan),
-        )
-        // 公司操作收费规则
-        .route(
-            "/api/v1/company-pricing/operations",
-            get(handlers::company_pricing::list_company_operation_pricing),
-        )
-        .route(
-            "/api/v1/company-pricing/operations",
-            post(handlers::company_pricing::create_company_operation_pricing),
-        )
-        .route(
-            "/api/v1/company-pricing/operations/:pricing_id",
-            put(handlers::company_pricing::update_company_operation_pricing),
-        )
-        .route(
-            "/api/v1/company-pricing/operations/:pricing_id",
-            delete(handlers::company_pricing::delete_company_operation_pricing),
-        )
-        // 查询价格
-        .route(
-            "/api/v1/company-pricing/operation-price",
-            get(handlers::company_pricing::get_operation_price),
-        )
-        .route(
-            "/api/v1/company-pricing/employee-fee/:company_name",
-            get(handlers::company_pricing::get_employee_monthly_fee),
-        )
-        // 报告
-        .route(
-            "/api/v1/reports/dashboard",
-            get(handlers::reports::get_dashboard_data),
-        )
-        .route(
-            "/api/v1/reports/export",
-            get(handlers::reports::export_data),
-        )
+        
+        // TaskFleet核心API（待添加）:
+        // 任务管理
+        // .route("/api/v1/tasks", get(handlers::tasks::list_tasks))
+        // .route("/api/v1/tasks", post(handlers::tasks::create_task))
+        // .route("/api/v1/tasks/batch-import", post(handlers::tasks::batch_import_tasks))
+        // .route("/api/v1/tasks/:id", get(handlers::tasks::get_task))
+        // .route("/api/v1/tasks/:id", put(handlers::tasks::update_task))
+        // .route("/api/v1/tasks/:id/status", put(handlers::tasks::update_task_status))
+        // .route("/api/v1/tasks/:id/assign", put(handlers::tasks::assign_task))
+        
+        // 项目管理
+        // .route("/api/v1/projects", get(handlers::projects::list_projects))
+        // .route("/api/v1/projects", post(handlers::projects::create_project))
+        // .route("/api/v1/projects/:id", get(handlers::projects::get_project))
+        
+        // 数据统计
+        // .route("/api/v1/analytics/dashboard", get(handlers::analytics::get_dashboard_overview))
+        // .route("/api/v1/analytics/employee-efficiency", get(handlers::analytics::get_employee_efficiency))
+        // .route("/api/v1/analytics/task-trends", get(handlers::analytics::get_task_trends))
+        
         .layer(middleware::from_fn_with_state(
             (database.clone(), config.clone()),
             crate::middleware::auth::AuthLayer::middleware,

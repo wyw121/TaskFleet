@@ -2,7 +2,7 @@ use axum::{
     extract::{Request, State},
     middleware::Next,
     response::Response,
-    http::{StatusCode, HeaderMap},
+    http::StatusCode,
 };
 use axum_extra::{
     headers::{authorization::Bearer, Authorization},
@@ -11,7 +11,7 @@ use axum_extra::{
 
 use crate::{
     Database, Config,
-    models::{UserInfo, UserRole},
+    models::UserInfo,
     utils::jwt::{decode_jwt_token, Claims},
 };
 

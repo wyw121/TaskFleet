@@ -1,3 +1,0 @@
-[[bin]]
-name = "query_users"
-path = "query_users_main.rs"
