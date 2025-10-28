@@ -2,29 +2,35 @@
 name = "employee-client"
 version = "0.1.0"
 edition = "2021"
-description = "Flow Farm Employee Client"
-authors = ["Flow Farm Team"]
+description = "TaskFleet Employee Desktop Client - Task Management Application"
+authors = ["TaskFleet Team"]
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }
 
 [dependencies]
+# Tauri框架核心
 tauri = { version = "2.0", features = [] }
 tauri-plugin-shell = "2.0"
 tauri-plugin-dialog = "2.0"
-tauri-plugin-fs = "2.0"
-tauri-plugin-http = "2.0"
+
+# 序列化和JSON支持
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+# 异步运行时
 tokio = { version = "1.0", features = ["full"] }
+
+# HTTP客户端
 reqwest = { version = "0.12", features = ["json"] }
-uuid = { version = "1.0", features = ["v4"] }
+
+# 时间处理
 chrono = { version = "0.4", features = ["serde"] }
-tracing = "0.1"
-tracing-subscriber = "0.3"
-# 新增依赖用于通讯录管理和ADB操作
-regex = "1.10"
+
+# 错误处理
 thiserror = "1.0"
 anyhow = "1.0"
-encoding_rs = "0.8"
-shellexpand = "3.1"
+
+# 日志
+tracing = "0.1"
+tracing-subscriber = "0.3"
