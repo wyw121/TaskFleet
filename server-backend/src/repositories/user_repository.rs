@@ -50,8 +50,8 @@ impl UserRepository {
     pub async fn create(&self, user: User) -> Result<User> {
         let result = sqlx::query(
             r#"
-            INSERT INTO users (username, email, hashed_password, role, full_name, is_active, created_at, updated_at, last_login)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (username, email, hashed_password, role, full_name, is_active, company_id, parent_id, created_at, updated_at, last_login)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&user.username)
@@ -60,6 +60,8 @@ impl UserRepository {
         .bind(user.role.as_str())
         .bind(&user.full_name)
         .bind(user.is_active)
+        .bind(user.company_id)
+        .bind(user.parent_id)
         .bind(user.created_at)
         .bind(user.updated_at)
         .bind(user.last_login)
@@ -78,7 +80,7 @@ impl UserRepository {
             r#"
             UPDATE users 
             SET username = ?, email = ?, hashed_password = ?, role = ?, full_name = ?, 
-                is_active = ?, updated_at = ?, last_login = ?
+                is_active = ?, company_id = ?, parent_id = ?, updated_at = ?, last_login = ?
             WHERE id = ?
             "#
         )
@@ -88,6 +90,8 @@ impl UserRepository {
         .bind(user.role.as_str())
         .bind(&user.full_name)
         .bind(user.is_active)
+        .bind(user.company_id)
+        .bind(user.parent_id)
         .bind(user.updated_at)
         .bind(user.last_login)
         .bind(user.id)
@@ -114,5 +118,41 @@ impl UserRepository {
             .execute(&self.database.pool)
             .await?;
         Ok(())
+    }
+
+    /// 根据parent_id查询用户(包括parent_id为NULL或等于指定值的用户)
+    /// 用于公司管理员查看自己管理的用户
+    pub async fn list_by_parent(&self, parent_id: i64) -> Result<Vec<User>> {
+        let users = sqlx::query_as::<_, User>(
+            "SELECT * FROM users WHERE parent_id = ? OR id = ? ORDER BY created_at DESC"
+        )
+        .bind(parent_id)
+        .bind(parent_id)
+        .fetch_all(&self.database.pool)
+        .await?;
+        Ok(users)
+    }
+
+    /// 查询所有顶级用户(parent_id为NULL的用户)及其下级
+    /// 用于系统管理员查看所有用户
+    pub async fn list_all_hierarchy(&self) -> Result<Vec<User>> {
+        let users = sqlx::query_as::<_, User>(
+            "SELECT * FROM users ORDER BY COALESCE(parent_id, id), created_at DESC"
+        )
+        .fetch_all(&self.database.pool)
+        .await?;
+        Ok(users)
+    }
+
+    /// 根据company_id查询用户
+    /// 用于公司管理员查看本公司所有用户
+    pub async fn list_by_company_id(&self, company_id: i64) -> Result<Vec<User>> {
+        let users = sqlx::query_as::<_, User>(
+            "SELECT * FROM users WHERE company_id = ? ORDER BY created_at DESC"
+        )
+        .bind(company_id)
+        .fetch_all(&self.database.pool)
+        .await?;
+        Ok(users)
     }
 }

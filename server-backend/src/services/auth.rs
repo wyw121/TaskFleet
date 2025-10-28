@@ -92,6 +92,8 @@ impl AuthService {
             full_name: if request.full_name.is_empty() { request.username.clone() } else { request.full_name.clone() },
             role: request.role,
             is_active: true,
+            company_id: None,  // 注册的新用户没有公司
+            parent_id: None,  // 注册的新用户没有上级
             created_at: now.format("%Y-%m-%d %H:%M:%S").to_string(),
             last_login: None,
         })

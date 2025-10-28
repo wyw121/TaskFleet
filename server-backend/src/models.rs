@@ -7,7 +7,12 @@ use validator::Validate;
 // 
 // TaskFleet核心数据模型包含以下几大类:
 //
-// 1. User（用户）模型 - 系统用户，包含项目经理和普通员工两种角色
+// 0. Company（公司）模型 - 多租户隔离的核心，所有数据都归属于公司
+//    - Company: 公司实体
+//    - CreateCompanyRequest/UpdateCompanyRequest: 创建/更新公司的DTO
+//    - CompanyInfo: 公司响应信息
+//
+// 1. User（用户）模型 - 系统用户，包含系统管理员、公司管理员和员工三种角色
 //    - User: 用户实体
 //    - UserRole: 用户角色枚举
 //    - CreateUserRequest/UpdateUserRequest: 创建/更新用户的DTO
@@ -31,6 +36,70 @@ use validator::Validate;
 //    - CreateWorkLogRequest/UpdateWorkLogRequest: 创建/更新工作记录的DTO
 //    - WorkLogInfo: 工作记录响应信息（包含关联数据）
 //
+// ==================== Company（公司）模型 ====================
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Company {
+    pub id: i64,
+    pub name: String,
+    pub contact_email: Option<String>,
+    pub contact_phone: Option<String>,
+    pub max_employees: i32,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct CreateCompanyRequest {
+    #[validate(length(min = 2, max = 100))]
+    pub name: String,
+    #[validate(email)]
+    pub contact_email: Option<String>,
+    pub contact_phone: Option<String>,
+    pub max_employees: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct UpdateCompanyRequest {
+    #[validate(length(min = 2, max = 100))]
+    pub name: Option<String>,
+    #[validate(email)]
+    pub contact_email: Option<String>,
+    pub contact_phone: Option<String>,
+    pub max_employees: Option<i32>,
+    pub is_active: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompanyInfo {
+    pub id: i64,
+    pub name: String,
+    pub contact_email: Option<String>,
+    pub contact_phone: Option<String>,
+    pub max_employees: i32,
+    pub current_employees: i32,  // 当前员工数
+    pub is_active: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl From<Company> for CompanyInfo {
+    fn from(company: Company) -> Self {
+        Self {
+            id: company.id,
+            name: company.name,
+            contact_email: company.contact_email,
+            contact_phone: company.contact_phone,
+            max_employees: company.max_employees,
+            current_employees: 0,  // 需要单独查询
+            is_active: company.is_active,
+            created_at: company.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+            updated_at: company.updated_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+        }
+    }
+}
+
 // ==================== User（用户）模型 ====================
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -42,6 +111,8 @@ pub struct User {
     pub role: UserRole,
     pub full_name: String,
     pub is_active: bool,
+    pub company_id: Option<i64>,  // 所属公司ID,SystemAdmin为NULL
+    pub parent_id: Option<i64>,  // 上级用户ID,用于层级隔离(临时方案,最终用company_id)
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub last_login: Option<DateTime<Utc>>,
@@ -49,7 +120,8 @@ pub struct User {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum UserRole {
-    ProjectManager,  // 项目管理员 - 可以创建项目、分配任务、查看统计
+    SystemAdmin,     // 系统管理员 - 可以查看和管理所有公司的所有数据
+    CompanyAdmin,    // 公司管理员 - 只能查看和管理本公司的数据
     Employee,        // 普通员工 - 只能查看和更新自己的任务
 }
 
@@ -77,18 +149,20 @@ impl<'q> sqlx::Encode<'q, sqlx::Sqlite> for UserRole {
 impl UserRole {
     pub fn as_str(&self) -> &'static str {
         match self {
-            UserRole::ProjectManager => "project_manager",
+            UserRole::SystemAdmin => "system_admin",
+            UserRole::CompanyAdmin => "user_admin",
             UserRole::Employee => "employee",
         }
     }
 
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
-            "project_manager" => Some(UserRole::ProjectManager),
+            "system_admin" => Some(UserRole::SystemAdmin),
+            "user_admin" => Some(UserRole::CompanyAdmin),
+            "company_admin" => Some(UserRole::CompanyAdmin),
             "employee" => Some(UserRole::Employee),
             // 兼容旧的字符串格式
-            "user_admin" => Some(UserRole::ProjectManager),
-            "system_admin" => Some(UserRole::ProjectManager),
+            "project_manager" => Some(UserRole::CompanyAdmin),
             _ => None,
         }
     }
@@ -97,9 +171,10 @@ impl UserRole {
 impl PartialEq<&str> for UserRole {
     fn eq(&self, other: &&str) -> bool {
         match (self, *other) {
-            (UserRole::ProjectManager, "project_manager") => true,
-            (UserRole::ProjectManager, "user_admin") => true,     // 兼容
-            (UserRole::ProjectManager, "system_admin") => true,   // 兼容
+            (UserRole::SystemAdmin, "system_admin") => true,
+            (UserRole::CompanyAdmin, "user_admin") => true,
+            (UserRole::CompanyAdmin, "company_admin") => true,
+            (UserRole::CompanyAdmin, "project_manager") => true,  // 兼容
             (UserRole::Employee, "employee") => true,
             _ => false,
         }
@@ -109,7 +184,8 @@ impl PartialEq<&str> for UserRole {
 impl std::fmt::Display for UserRole {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UserRole::ProjectManager => write!(f, "project_manager"),
+            UserRole::SystemAdmin => write!(f, "system_admin"),
+            UserRole::CompanyAdmin => write!(f, "user_admin"),
             UserRole::Employee => write!(f, "employee"),
         }
     }
@@ -125,6 +201,8 @@ pub struct CreateUserRequest {
     pub password: String,
     pub role: UserRole,
     pub full_name: String,
+    pub company_id: Option<i64>,  // 所属公司ID
+    pub parent_id: Option<i64>,  // 上级用户ID,用于层级隔离(临时方案)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
@@ -160,6 +238,8 @@ pub struct UserInfo {
     pub full_name: String,
     pub role: UserRole,
     pub is_active: bool,
+    pub company_id: Option<i64>,  // 所属公司ID
+    pub parent_id: Option<i64>,  // 上级用户ID
     pub created_at: String,
     pub last_login: Option<String>,
 }
@@ -173,6 +253,8 @@ impl From<User> for UserInfo {
             full_name: user.full_name,
             role: user.role,
             is_active: user.is_active,
+            company_id: user.company_id,
+            parent_id: user.parent_id,
             created_at: user.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
             last_login: user
                 .last_login

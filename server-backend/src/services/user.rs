@@ -25,13 +25,24 @@ impl UserService {
         &self,
         current_user: &UserInfo,
     ) -> Result<Vec<UserInfo>> {
-        // 只有项目管理员可以查看所有用户列表
-        if current_user.role != UserRole::ProjectManager {
-            return Err(anyhow!("权限不足：只有项目管理员可以查看用户列表"));
-        }
+        // 根据角色返回不同范围的用户列表
+        let users = match current_user.role {
+            // 系统管理员可以查看所有用户
+            UserRole::SystemAdmin => {
+                self.user_repository.list_all_hierarchy().await?
+            }
+            // 公司管理员只能查看本公司用户
+            UserRole::CompanyAdmin => {
+                let company_id = current_user.company_id
+                    .ok_or_else(|| anyhow!("公司管理员必须关联公司"))?;
+                self.user_repository.list_by_company_id(company_id).await?
+            }
+            // 普通员工不能查看用户列表
+            UserRole::Employee => {
+                return Err(anyhow!("权限不足：员工无法查看用户列表"));
+            }
+        };
 
-        // 获取所有用户
-        let users = self.user_repository.list_all().await?;
         Ok(users.into_iter().map(|user| user.into()).collect())
     }
 
@@ -40,13 +51,26 @@ impl UserService {
         user_id: i64,
         current_user: &UserInfo,
     ) -> Result<UserInfo> {
-        // 用户只能查看自己的信息，项目管理员可以查看所有用户
-        if current_user.role != UserRole::ProjectManager && current_user.id != user_id {
-            return Err(anyhow!("权限不足：只能查看自己的信息"));
-        }
-
         let user = self.user_repository.find_by_id(user_id).await?
             .ok_or_else(|| anyhow!("用户不存在"))?;
+
+        // 权限检查
+        match current_user.role {
+            // 系统管理员可以查看所有用户
+            UserRole::SystemAdmin => {}
+            // 公司管理员只能查看本公司用户
+            UserRole::CompanyAdmin => {
+                if user.company_id != current_user.company_id {
+                    return Err(anyhow!("权限不足：只能查看本公司用户"));
+                }
+            }
+            // 员工只能查看自己
+            UserRole::Employee => {
+                if user.id != current_user.id {
+                    return Err(anyhow!("权限不足：只能查看自己的信息"));
+                }
+            }
+        }
 
         Ok(user.into())
     }
@@ -56,10 +80,25 @@ impl UserService {
         request: CreateUserRequest,
         current_user: &UserInfo,
     ) -> Result<UserInfo> {
-        // 只有项目管理员可以创建用户
-        if current_user.role != UserRole::ProjectManager {
-            return Err(anyhow!("权限不足：只有项目管理员可以创建用户"));
-        }
+        // 只有管理员可以创建用户
+        let (company_id, parent_id) = match current_user.role {
+            UserRole::SystemAdmin => {
+                // 系统管理员可以创建任何用户,使用请求中的company_id
+                (request.company_id, request.parent_id)
+            }
+            UserRole::CompanyAdmin => {
+                // 公司管理员只能创建员工,且必须在自己公司
+                if request.role != UserRole::Employee {
+                    return Err(anyhow!("权限不足：公司管理员只能创建员工账号"));
+                }
+                let company_id = current_user.company_id
+                    .ok_or_else(|| anyhow!("公司管理员必须关联公司"))?;
+                (Some(company_id), Some(current_user.id))
+            }
+            UserRole::Employee => {
+                return Err(anyhow!("权限不足：员工无法创建用户"));
+            }
+        };
 
         // 检查用户名和邮箱是否已存在
         if self.user_repository.find_by_username(&request.username).await?.is_some() {
@@ -82,6 +121,8 @@ impl UserService {
             role: request.role.clone(),
             full_name: if request.full_name.is_empty() { request.username.clone() } else { request.full_name.clone() },
             is_active: true,
+            company_id,
+            parent_id,
             created_at: now,
             updated_at: now,
             last_login: None,
@@ -96,6 +137,8 @@ impl UserService {
             full_name: request.full_name,
             role: request.role,
             is_active: true,
+            company_id,
+            parent_id,
             created_at: now.format("%Y-%m-%d %H:%M:%S").to_string(),
             last_login: None,
         })
@@ -107,13 +150,25 @@ impl UserService {
         request: UpdateUserRequest,
         current_user: &UserInfo,
     ) -> Result<UserInfo> {
-        // 用户只能更新自己的信息，项目管理员可以更新所有用户
-        if current_user.role != UserRole::ProjectManager && current_user.id != user_id {
-            return Err(anyhow!("权限不足：只能更新自己的信息"));
-        }
-
         let mut user = self.user_repository.find_by_id(user_id).await?
             .ok_or_else(|| anyhow!("用户不存在"))?;
+
+        // 权限检查
+        match current_user.role {
+            UserRole::SystemAdmin => {}  // 系统管理员可以更新所有用户
+            UserRole::CompanyAdmin => {
+                // 公司管理员只能更新本公司用户
+                if user.company_id != current_user.company_id {
+                    return Err(anyhow!("权限不足：只能更新本公司用户"));
+                }
+            }
+            UserRole::Employee => {
+                // 员工只能更新自己
+                if user.id != current_user.id {
+                    return Err(anyhow!("权限不足：只能更新自己的信息"));
+                }
+            }
+        }
 
         // 更新字段
         if let Some(username) = request.username {
@@ -145,9 +200,9 @@ impl UserService {
         }
 
         if let Some(is_active) = request.is_active {
-            // 只有项目管理员可以更改用户状态
-            if current_user.role != UserRole::ProjectManager {
-                return Err(anyhow!("权限不足：只有项目管理员可以更改用户状态"));
+            // 只有管理员可以更改用户状态
+            if current_user.role == UserRole::Employee {
+                return Err(anyhow!("权限不足：员工无法更改用户状态"));
             }
             user.is_active = is_active;
         }
@@ -164,19 +219,28 @@ impl UserService {
         user_id: i64,
         current_user: &UserInfo,
     ) -> Result<()> {
-        // 只有项目管理员可以删除用户
-        if current_user.role != UserRole::ProjectManager {
-            return Err(anyhow!("权限不足：只有项目管理员可以删除用户"));
-        }
-
         // 不能删除自己
         if current_user.id == user_id {
             return Err(anyhow!("不能删除自己的账户"));
         }
 
         // 验证用户是否存在
-        let _user = self.user_repository.find_by_id(user_id).await?
+        let user = self.user_repository.find_by_id(user_id).await?
             .ok_or_else(|| anyhow!("用户不存在"))?;
+
+        // 权限检查
+        match current_user.role {
+            UserRole::SystemAdmin => {}  // 系统管理员可以删除任何用户
+            UserRole::CompanyAdmin => {
+                // 公司管理员只能删除本公司用户
+                if user.company_id != current_user.company_id {
+                    return Err(anyhow!("权限不足：只能删除本公司用户"));
+                }
+            }
+            UserRole::Employee => {
+                return Err(anyhow!("权限不足：员工无法删除用户"));
+            }
+        }
 
         // 删除用户
         self.user_repository.delete(user_id).await?;
