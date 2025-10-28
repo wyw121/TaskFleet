@@ -128,6 +128,9 @@ pub enum AppError {
     #[error("数据库连接失败")]
     DatabaseConnection,
 
+    #[error("数据库操作错误: {0}")]
+    DatabaseError(String),
+
     #[error("数据库查询错误: {0}")]
     DatabaseQuery(String),
 
@@ -197,6 +200,7 @@ impl AppError {
 
             // 数据库
             AppError::DatabaseConnection => DATABASE_CONNECTION_ERROR,
+            AppError::DatabaseError(_) => DATABASE_QUERY_ERROR,
             AppError::DatabaseQuery(_) => DATABASE_QUERY_ERROR,
             AppError::NotFound(_) => DATABASE_NOT_FOUND,
             AppError::Conflict(_) => DATABASE_CONFLICT,
@@ -261,6 +265,7 @@ impl AppError {
 
             // 内部错误 - 500
             AppError::DatabaseConnection
+            | AppError::DatabaseError(_)
             | AppError::DatabaseQuery(_)
             | AppError::Internal(_)
             | AppError::Unknown(_)

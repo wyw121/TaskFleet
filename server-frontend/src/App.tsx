@@ -3,11 +3,12 @@ import React, { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
-import TestPage from './components/TestPage'
-import UnauthorizedPage from './components/UnauthorizedPage'
+import AppLayout from './components/layout/AppLayout'
 import Login from './pages/Login'
-import SystemAdminDashboard from './pages/SystemAdminDashboard'
-import UserAdminDashboard from './pages/UserAdminDashboard'
+import Dashboard from './pages/Dashboard'
+import TaskManagement from './pages/TaskManagement'
+import ProjectManagement from './pages/ProjectManagement'
+import Analytics from './pages/Analytics'
 import { RootState } from './store'
 import { clearAuthState, getCurrentUser } from './store/authSlice'
 
@@ -81,87 +82,23 @@ const App: React.FC = () => {
   return (
     <AntApp>
       <Routes>
-        {/* 登录页面重定向 - 已登录用户访问登录页时直接重定向到相应仪表板 */}
+        {/* 登录页面重定向 - 已登录用户访问登录页时直接重定向到仪表板 */}
         <Route
           path="/login"
-          element={
-            user?.role === 'system_admin' ? (
-              <Navigate to="/system-admin/dashboard" replace />
-            ) : user?.role === 'user_admin' ? (
-              <Navigate to="/user-admin/dashboard" replace />
-            ) : user?.role === 'employee' ? (
-              <Navigate to="/employee/dashboard" replace />
-            ) : (
-              <Navigate to="/unauthorized" replace />
-            )
-          }
+          element={<Navigate to="/dashboard" replace />}
         />
 
-        {/* 系统管理员路由 */}
-        <Route
-          path="/system-admin/*"
-          element={
-            user?.role === 'system_admin' ? (
-              <SystemAdminDashboard />
-            ) : (
-              <Navigate to="/unauthorized" replace />
-            )
-          }
-        />
+        {/* TaskFleet主应用路由 */}
+        <Route path="/" element={<AppLayout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="tasks" element={<TaskManagement />} />
+          <Route path="projects" element={<ProjectManagement />} />
+          <Route path="analytics" element={<Analytics />} />
+        </Route>
 
-        {/* 用户管理员路由 */}
-        <Route
-          path="/user-admin/*"
-          element={
-            user?.role === 'user_admin' ? (
-              <UserAdminDashboard />
-            ) : (
-              <Navigate to="/unauthorized" replace />
-            )
-          }
-        />
-
-        {/* 测试页面路由 */}
-        <Route path="/test" element={<TestPage />} />
-
-        {/* 调试路由 */}
-        <Route
-          path="/debug"
-          element={
-            <div style={{ padding: '20px' }}>
-              <h2>调试信息</h2>
-              <div>用户角色: "{user?.role}"</div>
-              <div>角色类型: {typeof user?.role}</div>
-              <div>角色长度: {user?.role?.length}</div>
-              <div>是系统管理员: {user?.role === 'system_admin' ? 'true' : 'false'}</div>
-              <div>是用户管理员: {user?.role === 'user_admin' ? 'true' : 'false'}</div>
-              <div>是员工: {user?.role === 'employee' ? 'true' : 'false'}</div>
-              <pre>{JSON.stringify(user, null, 2)}</pre>
-            </div>
-          }
-        />
-
-        {/* 根路径智能重定向 */}
-        <Route
-          path="/"
-          element={
-            user?.role === 'system_admin' ? (
-              <Navigate to="/system-admin/dashboard" replace />
-            ) : user?.role === 'user_admin' ? (
-              <Navigate to="/user-admin/dashboard" replace />
-            ) : user?.role === 'employee' ? (
-              <Navigate to="/employee/dashboard" replace />
-            ) : (
-              <Navigate to="/unauthorized" replace />
-            )
-          }
-        />
-
-        {/* 无权限页面 */}
-        <Route path="/unauthorized" element={<UnauthorizedPage />} />
-
-        {/* 404页面 - 重定向到根路径 */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* 404页面 - 重定向到仪表板 */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </AntApp>
   )

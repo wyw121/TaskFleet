@@ -2,7 +2,7 @@ use axum::{
     http::Method,
     middleware,
     routing::{delete, get, post, put},
-    Router,
+    Extension, Router,
 };
 use std::path::PathBuf;
 use tower_http::{
@@ -13,6 +13,9 @@ use tower_http::{
 use crate::{handlers, Config, Database};
 
 pub async fn create_app(database: Database, config: Config) -> Router {
+    // 创建事件广播器
+    let event_broadcaster = handlers::websocket::create_event_broadcaster();
+    
     // 创建CORS中间件
     let cors = CorsLayer::new()
         .allow_origin(tower_http::cors::Any)
@@ -63,6 +66,7 @@ pub async fn create_app(database: Database, config: Config) -> Router {
     let protected_routes = Router::new()
         .route("/api/v1/auth/me", get(handlers::auth::get_current_user))
         .route("/api/v1/auth/refresh", post(handlers::auth::refresh_token))
+        
         // 用户管理
         .route("/api/v1/users", get(handlers::users::list_users))
         .route("/api/v1/users", post(handlers::users::create_user))
@@ -70,30 +74,43 @@ pub async fn create_app(database: Database, config: Config) -> Router {
         .route("/api/v1/users/:id", put(handlers::users::update_user))
         .route("/api/v1/users/:id", delete(handlers::users::delete_user))
         
-        // TaskFleet核心API（待添加）:
-        // 任务管理
-        // .route("/api/v1/tasks", get(handlers::tasks::list_tasks))
-        // .route("/api/v1/tasks", post(handlers::tasks::create_task))
-        // .route("/api/v1/tasks/batch-import", post(handlers::tasks::batch_import_tasks))
-        // .route("/api/v1/tasks/:id", get(handlers::tasks::get_task))
-        // .route("/api/v1/tasks/:id", put(handlers::tasks::update_task))
-        // .route("/api/v1/tasks/:id/status", put(handlers::tasks::update_task_status))
-        // .route("/api/v1/tasks/:id/assign", put(handlers::tasks::assign_task))
+        // 任务管理 API
+        .route("/api/v1/tasks", get(handlers::tasks::list_tasks))
+        .route("/api/v1/tasks", post(handlers::tasks::create_task))
+        .route("/api/v1/tasks/:id", get(handlers::tasks::get_task))
+        .route("/api/v1/tasks/:id", put(handlers::tasks::update_task))
+        .route("/api/v1/tasks/:id", delete(handlers::tasks::delete_task))
+        .route("/api/v1/tasks/:id/start", post(handlers::tasks::start_task))
+        .route("/api/v1/tasks/:id/complete", post(handlers::tasks::complete_task))
+        .route("/api/v1/tasks/:id/cancel", post(handlers::tasks::cancel_task))
+        .route("/api/v1/tasks/:id/assign", post(handlers::tasks::assign_task))
         
-        // 项目管理
-        // .route("/api/v1/projects", get(handlers::projects::list_projects))
-        // .route("/api/v1/projects", post(handlers::projects::create_project))
-        // .route("/api/v1/projects/:id", get(handlers::projects::get_project))
+        // 项目管理 API
+        .route("/api/v1/projects", get(handlers::projects::list_projects))
+        .route("/api/v1/projects", post(handlers::projects::create_project))
+        .route("/api/v1/projects/:id", get(handlers::projects::get_project))
+        .route("/api/v1/projects/:id", put(handlers::projects::update_project))
+        .route("/api/v1/projects/:id", delete(handlers::projects::delete_project))
+        .route("/api/v1/projects/:id/start", post(handlers::projects::start_project))
+        .route("/api/v1/projects/:id/hold", post(handlers::projects::hold_project))
+        .route("/api/v1/projects/:id/complete", post(handlers::projects::complete_project))
+        .route("/api/v1/projects/:id/cancel", post(handlers::projects::cancel_project))
         
-        // 数据统计
-        // .route("/api/v1/analytics/dashboard", get(handlers::analytics::get_dashboard_overview))
-        // .route("/api/v1/analytics/employee-efficiency", get(handlers::analytics::get_employee_efficiency))
-        // .route("/api/v1/analytics/task-trends", get(handlers::analytics::get_task_trends))
+        // 数据统计 API
+        .route("/api/v1/statistics/tasks", get(handlers::statistics::get_task_statistics))
+        .route("/api/v1/statistics/projects", get(handlers::statistics::get_project_statistics))
+        .route("/api/v1/statistics/users/workload", get(handlers::statistics::get_all_users_workload))
+        .route("/api/v1/statistics/users/:user_id/workload", get(handlers::statistics::get_user_workload))
+        .route("/api/v1/statistics/projects/:project_id/progress", get(handlers::statistics::get_project_progress))
+        
+        // WebSocket实时通信
+        .route("/ws/task-updates", get(handlers::websocket::task_updates_websocket))
         
         .layer(middleware::from_fn_with_state(
             (database.clone(), config.clone()),
             crate::middleware::auth::AuthLayer::middleware,
         ))
+        .layer(Extension(event_broadcaster))
         .with_state((database, config));
 
     // 合并路由

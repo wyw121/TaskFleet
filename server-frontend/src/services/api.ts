@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-// 在开发环境使用相对路径，通过Vite代理；生产环境使用完整URL
+// 在开发环境使用相对路径,通过Vite代理;生产环境使用完整URL
 const API_BASE_URL = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000')
 
 export const apiClient = axios.create({
@@ -37,3 +37,6 @@ apiClient.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+// 默认导出API客户端
+export default apiClient

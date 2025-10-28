@@ -400,9 +400,9 @@ pub struct Project {
     /// 实际支出（单位：元）
     pub actual_cost: Option<f64>,
     /// 创建时间
-    pub created_at: chrono::NaiveDateTime,
+    pub created_at: DateTime<Utc>,
     /// 更新时间
-    pub updated_at: chrono::NaiveDateTime,
+    pub updated_at: DateTime<Utc>,
 }
 
 /// 创建项目请求
@@ -481,8 +481,8 @@ pub struct ProjectInfo {
     pub task_count: Option<i64>,       // 任务总数
     pub completed_tasks: Option<i64>,  // 已完成任务数
     pub progress: Option<f64>,         // 进度百分比
-    pub created_at: chrono::NaiveDateTime,
-    pub updated_at: chrono::NaiveDateTime,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl From<Project> for ProjectInfo {
@@ -525,9 +525,9 @@ pub struct WorkLog {
     /// 工作日期
     pub work_date: chrono::NaiveDate,
     /// 创建时间
-    pub created_at: chrono::NaiveDateTime,
+    pub created_at: DateTime<Utc>,
     /// 更新时间
-    pub updated_at: chrono::NaiveDateTime,
+    pub updated_at: DateTime<Utc>,
 }
 
 /// 创建工作记录请求
