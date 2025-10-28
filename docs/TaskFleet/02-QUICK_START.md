@@ -1,306 +1,226 @@
 # TaskFleet - 快速启动指南
 
-**目的**: 帮助你在 30 分钟内从 Flow_Farm 创建 TaskFleet 新项目
+**目的**: 帮助你在 30 分钟内启动 TaskFleet 开发环境并理解核心功能
 
-**创建日期**: 2025年10月28日
+**创建日期**: 2025年10月28日  
+**更新日期**: 2025年10月28日
 
 ---
 
-## 🎯 第一步: 创建新项目 (5分钟)
+## 🎯 第一步: 获取项目代码 (5分钟)
 
-### 1. 创建 GitHub 仓库
-
-```bash
-# 在 GitHub 上创建新仓库
-# 仓库名: TaskFleet
-# 描述: 专注任务执行的开源项目管理系统
-# 公开仓库,添加 MIT License
-```
-
-### 2. 克隆 Flow_Farm 并清理
+### 1. 克隆项目
 
 ```bash
-# 克隆 Flow_Farm 到新目录
-cd d:/repositories
-git clone https://github.com/wyw121/Flow_Farm.git TaskFleet
+# 克隆 TaskFleet 项目
+git clone https://github.com/wyw121/TaskFleet.git
 cd TaskFleet
-
-# 删除 .git 目录
-Remove-Item -Recurse -Force .git
-
-# 初始化新的 Git 仓库
-git init
-git remote add origin https://github.com/wyw121/TaskFleet.git
 ```
 
-### 3. 清理不需要的模块
+### 2. 了解项目结构
+
+```
+TaskFleet/
+├── server-backend/         # Rust 后端服务 (Axum + SQLx)
+├── server-frontend/        # React Web 前端 (TypeScript + Ant Design)
+├── employee-client/        # Tauri 桌面客户端 (Rust + HTML/CSS/JS)
+├── docs/                   # 项目文档
+│   └── TaskFleet/         # 核心文档目录
+└── README.md              # 项目说明
+```
+
+### 3. 环境要求检查
 
 ```bash
-# 删除不需要的目录
-Remove-Item -Recurse -Force adb_xml_reader
-Remove-Item -Recurse -Force employee-client  # 稍后重新创建简化版
-Remove-Item -Recurse -Force deploy
-Remove-Item -Recurse -Force scripts
+# 检查 Rust 环境
+rustc --version  # 需要 1.70+
+cargo --version
 
-# 保留目录
-# - server-backend (重命名为 backend)
-# - server-frontend (重命名为 frontend)
-# - docs
+# 检查 Node.js 环境  
+node --version   # 需要 18+
+npm --version
+
+# 检查 Tauri CLI
+cargo install tauri-cli --version 2.0
+cargo tauri --version
 ```
 
 ---
 
 ## 🔧 第二步: 重构后端 (10分钟)
 
-### 1. 重命名和清理
+---
+
+## 🖥️ 第二步: 启动后端服务 (5分钟)
+
+### 1. 准备数据库
 
 ```bash
-# 重命名目录
-Rename-Item server-backend backend
-cd backend
+# 确保 PostgreSQL 正在运行
+# 创建数据库 (如果还没有)
+createdb taskfleet
 
-# 更新 Cargo.toml
+# 配置环境变量
+cd server-backend
+cp .env.example .env
+
+# 编辑 .env 文件，配置数据库连接
+# DATABASE_URL=postgresql://username:password@localhost/taskfleet
 ```
 
-**backend/Cargo.toml**:
-```toml
-[package]
-name = "taskfleet-backend"
-version = "0.1.0"
-edition = "2021"
+### 2. 运行数据库迁移
 
-# 保留核心依赖
-[dependencies]
-axum = "0.7"
-tokio = { version = "1", features = ["full"] }
-sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-jsonwebtoken = "9.2"
-uuid = { version = "1.6", features = ["serde", "v4"] }
-chrono = { version = "0.4", features = ["serde"] }
-# ... 其他必要依赖
+```bash
+# 安装 sqlx-cli (如果还没有)
+cargo install sqlx-cli
+
+# 运行迁移
+sqlx migrate run
 ```
 
-### 2. 清理数据模型
+### 3. 启动后端服务
 
-**需要保留的模型**:
-- `models/user.rs` - 用户模型
-- `models/project.rs` - 项目模型 (新建)
-- `models/task.rs` - 任务模型 (新建)
+```bash
+# 开发模式启动
+cargo run
 
-**需要删除的模型**:
-- 所有与"用户管理员"相关的代码
-- 所有与"设备管理"相关的代码
-- 所有与"平台自动化"相关的代码
-- 所有与"余额/计费"相关的代码
-
-### 3. 简化权限系统
-
-**src/models/user.rs**:
-```rust
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(type_name = "user_role", rename_all = "lowercase")]
-pub enum UserRole {
-    Manager,   // 项目经理
-    Employee,  // 员工
-}
-
-// 删除: SystemAdmin, UserAdmin 等
+# 或使用 VS Code 任务
+# Ctrl+Shift+P -> 任务: 运行任务 -> "🚀 启动服务器后端"
 ```
 
-### 4. 创建核心表结构
-
-**migrations/001_init.sql**:
-```sql
--- 用户表 (简化)
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username VARCHAR(50) UNIQUE NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 项目表
-CREATE TABLE projects (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    owner_id UUID NOT NULL REFERENCES users(id),
-    status VARCHAR(20) DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 项目成员表
-CREATE TABLE project_members (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role VARCHAR(20) NOT NULL,
-    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(project_id, user_id)
-);
-
--- 任务表
-CREATE TABLE tasks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    title VARCHAR(200) NOT NULL,
-    description TEXT,
-    assigned_to UUID REFERENCES users(id),
-    created_by UUID NOT NULL REFERENCES users(id),
-    status VARCHAR(20) DEFAULT 'todo',
-    priority VARCHAR(20) DEFAULT 'medium',
-    due_date TIMESTAMP,
-    completed_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_tasks_project ON tasks(project_id);
-CREATE INDEX idx_tasks_assigned ON tasks(assigned_to);
-CREATE INDEX idx_tasks_status ON tasks(status);
-```
+后端服务将在 `http://localhost:8000` 启动。
 
 ---
 
-## 🎨 第三步: 重构前端 (10分钟)
+## 🌐 第三步: 启动Web前端 (5分钟)
 
-### 1. 重命名和清理
+### 1. 安装依赖
 
 ```bash
-cd ..
-Rename-Item server-frontend frontend
-cd frontend
-
-# 更新 package.json
+cd ../server-frontend
+npm install
 ```
 
-**frontend/package.json**:
-```json
-{
-  "name": "taskfleet-frontend",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.0",
-    "antd": "^5.12.0",
-    "@ant-design/icons": "^5.2.6",
-    "axios": "^1.6.0",
-    "zustand": "^4.4.7",
-    "echarts": "^5.4.3",
-    "echarts-for-react": "^3.0.2",
-    "dayjs": "^1.11.10"
-  },
-  "devDependencies": {
-    "@types/react": "^18.2.43",
-    "@types/react-dom": "^18.2.17",
-    "@vitejs/plugin-react": "^4.2.1",
-    "typescript": "^5.3.3",
-    "vite": "^5.0.8"
-  }
-}
+### 2. 启动开发服务器
+
+```bash
+# 开发模式启动
+npm run dev
+
+# 或使用 VS Code 任务  
+# Ctrl+Shift+P -> 任务: 运行任务 -> "🌐 启动服务器前端开发"
 ```
 
-### 2. 删除不需要的页面
+Web前端将在 `http://localhost:3000` 启动。
 
-**需要删除**:
-- 所有系统管理员相关页面
-- 所有设备管理页面
-- 所有计费相关页面
+### 3. 验证Web端功能
 
-**需要保留和新建**:
-- `pages/Login.tsx` - 登录页 (简化)
-- `pages/Dashboard.tsx` - 仪表盘 (新建)
-- `pages/Projects.tsx` - 项目列表 (新建)
-- `pages/Tasks.tsx` - 任务管理 (新建)
-- `pages/Statistics.tsx` - 统计报表 (新建)
-
-### 3. 简化路由
-
-**src/App.tsx**:
-```typescript
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Login } from './pages/Login';
-import { Dashboard } from './pages/Dashboard';
-import { Projects } from './pages/Projects';
-import { Tasks } from './pages/Tasks';
-import { Statistics } from './pages/Statistics';
-import { ProtectedRoute } from './components/ProtectedRoute';
-
-function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        
-        <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/statistics" element={<Statistics />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
-  );
-}
-
-export default App;
-```
+1. 打开浏览器访问 `http://localhost:3000`
+2. 使用测试账户登录 (如果有的话)
+3. 查看项目管理界面
+4. 测试任务分发功能
 
 ---
 
-## 💻 第四步: 创建桌面客户端 (5分钟)
+## 💻 第四步: 启动桌面客户端 (5分钟)
 
-### 1. 初始化 Tauri 项目
+### 1. 检查Tauri环境
 
 ```bash
-cd ..
-mkdir desktop-client
-cd desktop-client
+cd ../employee-client
 
-# 使用 Tauri CLI 创建项目
-cargo install tauri-cli
-cargo tauri init
+# 检查Tauri CLI
+cargo tauri --version
+
+# 如果没有安装
+cargo install tauri-cli --version 2.0
 ```
 
-### 2. 配置 Tauri
+### 2. 启动开发模式
 
-按照之前的技术指南配置 `tauri.conf.json`
+```bash
+# 开发模式启动
+cargo tauri dev
 
-### 3. 创建简单的 UI
+# 或使用 VS Code 任务
+# Ctrl+Shift+P -> 任务: 运行任务 -> "💻 启动员工客户端开发"
+```
 
-**src/index.html**:
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>TaskFleet - 员工客户端</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <div id="app">
-        <div id="login-page" class="page">
-            <h1>TaskFleet 员工客户端</h1>
-            <form id="login-form">
-                <input type="text" id="username" placeholder="用户名" required>
-                <input type="password" id="password" placeholder="密码" required>
-                <button type="submit">登录</button>
-            </form>
+桌面应用将自动启动新窗口。
+
+### 3. 验证桌面端功能
+
+1. 确认桌面应用正常启动
+2. 测试员工登录功能
+3. 查看任务列表界面
+4. 测试任务状态更新
+
+---
+
+## 🧪 第五步: 验证系统功能 (10分钟)
+
+### 1. 创建测试数据
+
+**使用Web端 (项目经理视角)**:
+1. 登录Web管理界面
+2. 创建新项目 "测试项目"
+3. 批量导入任务 (如果支持CSV)
+4. 将任务分配给员工
+
+### 2. 测试多端协同
+
+**桌面端 (员工视角)**:
+1. 登录员工客户端
+2. 查看分配的任务列表
+3. 更新任务状态 (开始/完成)
+4. 验证Web端实时更新
+
+### 3. 检查核心功能
+
+- [ ] ✅ 用户认证和权限控制
+- [ ] ✅ 项目创建和管理
+- [ ] ✅ 任务分发和分配
+- [ ] ✅ 实时状态同步
+- [ ] ✅ 数据统计和报表
+
+---
+
+## 🚀 下一步: 开发和部署
+
+### 开发建议
+
+1. **代码检查**: 经常运行 `cargo check` 和 `npm run build`
+2. **测试驱动**: 为核心功能编写测试用例
+3. **文档更新**: 及时更新API文档和用户指南
+4. **版本控制**: 使用语义化版本号管理
+
+### 部署选项
+
+- **Docker**: 使用 `docker-compose.yml` 一键部署
+- **云服务**: 部署到 AWS/Azure/阿里云
+- **本地服务器**: 编译为二进制文件直接运行
+
+### 扩展方向
+
+- **移动端**: React Native或Flutter版本
+- **API扩展**: GraphQL支持
+- **集成**: 与现有OA系统集成
+- **插件系统**: 支持第三方扩展
+
+---
+
+## � 相关资源
+
+- **[技术实现指南](./01-TECHNICAL_GUIDE.md)** - 详细技术方案
+- **[项目概述](./00-PROJECT_OVERVIEW.md)** - 产品定位和愿景
+- **[多平台策略](./03-MULTI_PLATFORM_STRATEGY.md)** - 跨平台开发策略
+- **主项目README**: `../README.md`
+- **API文档**: 启动后端后访问 `/docs` 端点
+
+**需要帮助?** 
+- 查看项目Issues: https://github.com/wyw121/TaskFleet/issues
+- 阅读开发文档: `docs/` 目录
+- 检查配置文件: `.env.example` 和 `tauri.conf.json`
         </div>
         
         <div id="tasks-page" class="page hidden">
@@ -427,10 +347,10 @@ git add .
 # 初始提交
 git commit -m "feat: initial commit - TaskFleet v0.1.0
 
-- 从 Flow_Farm 提取核心功能
-- 简化权限架构 (项目经理-员工)
-- 专注任务执行管理
-- 移除不需要的模块 (设备管理/计费等)"
+- TaskFleet 任务执行专家系统
+- 简化权限架构 (项目经理-员工)  
+- 专注任务分发和监控管理
+- 多端协同 (Web+桌面) 架构"
 
 # 推送到 GitHub
 git branch -M main
@@ -492,10 +412,10 @@ npm run dev
 在完成以上步骤后,确认:
 
 ### 代码清理
-- [ ] 删除了所有设备管理相关代码
-- [ ] 删除了所有计费相关代码
-- [ ] 删除了所有系统管理员功能
-- [ ] 简化了用户权限系统
+- [ ] 确认了TaskFleet核心功能完整
+- [ ] 确认了用户权限系统简洁
+- [ ] 确认了三端架构清晰
+- [ ] 确认了数据库模型合理
 
 ### 功能验证
 - [ ] 后端 API 正常启动

@@ -8,8 +8,8 @@ applyTo: "**/*.json"
 
 ### 应用程序标识
 
-- **应用名称**: "Flow Farm Employee Client"
-- **标识符**: "com.flowfarm.employee-client"
+- **应用名称**: "TaskFleet Employee Client"
+- **标识符**: "com.taskfleet.employee-client"
 - **版本**: 遵循语义化版本控制
 
 ### 窗口配置
@@ -18,7 +18,7 @@ applyTo: "**/*.json"
 {
   "windows": [
     {
-      "title": "Flow Farm Employee Client",
+      "title": "TaskFleet Employee Client",
       "width": 1200,
       "height": 800,
       "minWidth": 1000,

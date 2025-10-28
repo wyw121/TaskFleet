@@ -1,62 +1,102 @@
-# UI Development Prompts
+# TaskFleet Employee Client - UI Components
 
-## Modern Desktop Interface Design
+## Modern Desktop Interface Design for Task Management
 
-### Device Management UI
+### Main Dashboard
 ```prompt
-创建设备管理界面，包含：
-1. 设备列表（1-10编号显示）
-2. 连接状态指示器（绿色/红色）
-3. 设备名称显示
-4. 连接/断开按钮
-5. 批量操作功能
+创建任务管理主界面，包含：
+1. 任务列表显示
+2. 任务状态筛选
+3. 任务搜索功能
+4. 任务详情查看
+5. 状态更新操作
 
 HTML 结构：
 ```html
-<div class="device-management">
-    <h2>设备管理 (Device Management)</h2>
-    <div class="device-list">
-        <!-- 动态生成设备项 -->
+<div class="task-dashboard">
+    <h2>我的任务 (My Tasks)</h2>
+    <div class="task-filters">
+        <select id="status-filter">
+            <option value="all">全部任务</option>
+            <option value="todo">待开始</option>
+            <option value="in-progress">进行中</option>
+            <option value="completed">已完成</option>
+        </select>
+        <input type="search" id="task-search" placeholder="搜索任务...">
     </div>
-    <div class="device-actions">
-        <button id="connect-all">全部连接</button>
-        <button id="disconnect-all">全部断开</button>
+    <div class="task-list">
+        <!-- 动态生成任务项 -->
     </div>
 </div>
 ```
 
 CSS 样式要求：
 - 现代卡片设计
-- 清晰的状态指示
+- 清晰的任务状态指示
 - 响应式布局
 ```
 
-### Task Management Interface
+### Task Card Component
 ```prompt
-设计任务管理界面：
-1. 选项卡切换（通讯录管理、精准获客）
-2. 平台选择下拉菜单
-3. 文件上传区域
-4. 任务进度显示
-5. 余额和统计信息
+设计任务卡片组件：
+1. 任务标题和描述
+2. 优先级标识
+3. 截止日期显示
+4. 状态更新按钮
+5. 详情查看链接
 
 布局结构：
 ```html
-<div class="task-management">
-    <div class="platform-selector">
-        <select id="platform-select">
-            <option value="xiaohongshu">小红书</option>
-            <option value="douyin">抖音</option>
-        </select>
+<div class="task-card">
+    <div class="task-header">
+        <h3 class="task-title"></h3>
+        <span class="task-priority"></span>
     </div>
-
-    <div class="task-tabs">
-        <div class="tab active" data-tab="contacts">通讯录管理</div>
-        <div class="tab" data-tab="acquisition">精准获客</div>
+    <div class="task-content">
+        <p class="task-description"></p>
+        <div class="task-meta">
+            <span class="due-date"></span>
+            <span class="task-status"></span>
+        </div>
     </div>
+    <div class="task-actions">
+        <button class="btn-start">开始任务</button>
+        <button class="btn-complete">完成任务</button>
+        <button class="btn-details">查看详情</button>
+    </div>
+</div>
+```
+```
+### Login Component
+```prompt
+创建登录界面组件：
+1. 用户名和密码输入
+2. 记住登录状态选项
+3. 登录状态反馈
+4. 错误信息显示
+5. 服务器连接状态
 
-    <div class="tab-content">
-        <!-- 动态内容 -->
+HTML 结构：
+```html
+<div class="login-container">
+    <div class="login-form">
+        <h2>TaskFleet 员工客户端</h2>
+        <form id="login-form">
+            <div class="input-group">
+                <input type="text" id="username" placeholder="用户名" required>
+            </div>
+            <div class="input-group">
+                <input type="password" id="password" placeholder="密码" required>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="remember-me">
+                <label for="remember-me">记住登录状态</label>
+            </div>
+            <button type="submit" class="login-btn">登录</button>
+        </form>
+        <div class="server-status">
+            <span id="connection-status">检查服务器连接...</span>
+        </div>
     </div>
 </div>
 ```
@@ -64,72 +104,84 @@ CSS 样式要求：
 
 ## Interactive Components
 
-### File Upload Component
+### Task Status Update Component
 ```prompt
-创建文件上传组件：
-1. 拖拽上传支持
-2. 文件类型验证（CSV/TXT）
-3. 上传进度显示
-4. 文件预览功能
-5. 错误处理提示
+创建任务状态更新组件：
+1. 状态选择器
+2. 备注添加功能
+3. 文件附件上传
+4. 工作时间记录
+5. 确认提交按钮
 
 JavaScript 实现：
 ```javascript
-class FileUploadComponent {
-    constructor(containerId) {
-        this.container = document.getElementById(containerId);
+class TaskStatusUpdater {
+    constructor(taskId) {
+        this.taskId = taskId;
         this.init();
     }
 
-    init() {
-        this.createUploadArea();
-        this.bindEvents();
-    }
-
-    async uploadFile(file) {
+    async updateTaskStatus(status, notes, attachments) {
         try {
-            const result = await window.__TAURI__.invoke('upload_file', {
-                filePath: file.path,
-                fileType: file.type
+            const result = await window.__TAURI__.invoke('update_task_status', {
+                taskId: this.taskId,
+                status: status,
+                notes: notes,
+                attachments: attachments
             });
             this.handleSuccess(result);
         } catch (error) {
             this.handleError(error);
         }
     }
+
+    async uploadAttachment(file) {
+        try {
+            const result = await window.__TAURI__.invoke('upload_attachment', {
+                taskId: this.taskId,
+                filePath: file.path
+            });
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    }
 }
 ```
 ```
 
-### Progress Display Component
+### Notification Component
 ```prompt
-实现进度显示组件：
-1. 实时进度条更新
-2. 任务状态显示
-3. 完成数量统计
-4. 错误计数显示
-5. 暂停/继续控制
+实现通知组件：
+1. 新任务通知
+2. 截止日期提醒
+3. 状态更新确认
+4. 错误信息显示
+5. 系统托盘集成
 
 HTML 结构：
 ```html
-<div class="progress-display">
-    <div class="progress-header">
-        <span class="task-title">任务进行中...</span>
-        <span class="progress-percentage">0%</span>
+<div class="notification-center">
+    <div class="notification-header">
+        <h3>通知中心</h3>
+        <button id="mark-all-read">全部已读</button>
     </div>
-    <div class="progress-bar">
-        <div class="progress-fill" style="width: 0%"></div>
-    </div>
-    <div class="progress-stats">
-        <span>已完成: <span id="completed">0</span></span>
-        <span>总数: <span id="total">0</span></span>
-        <span>失败: <span id="failed">0</span></span>
-    </div>
-    <div class="progress-controls">
-        <button id="pause-btn">暂停</button>
-        <button id="stop-btn">停止</button>
+    <div class="notification-list">
+        <!-- 动态生成通知项 -->
     </div>
 </div>
+
+<template id="notification-template">
+    <div class="notification-item">
+        <div class="notification-icon"></div>
+        <div class="notification-content">
+            <h4 class="notification-title"></h4>
+            <p class="notification-message"></p>
+            <span class="notification-time"></span>
+        </div>
+        <button class="notification-close">×</button>
+    </div>
+</template>
 ```
 ```
 
@@ -191,7 +243,7 @@ HTML 结构：
 ```prompt
 实现 Tauri 前后端通信：
 ```javascript
-class TauriService {
+class TaskFleetService {
     // 调用 Rust 命令
     async invokeCommand(command, payload = {}) {
         try {
@@ -213,9 +265,85 @@ class TauriService {
     async emit(event, payload) {
         await window.__TAURI__.event.emit(event, payload);
     }
+
+    // 任务相关操作
+    async getTasks(filter = {}) {
+        return this.invokeCommand('get_tasks', filter);
+    }
+
+    async updateTask(taskId, updates) {
+        return this.invokeCommand('update_task', { taskId, updates });
+    }
+
+    async authenticate(username, password) {
+        return this.invokeCommand('authenticate', { username, password });
+    }
 }
 
 // 使用示例
+const service = new TaskFleetService();
+
+// 获取任务列表
+service.getTasks({ status: 'todo' }).then(result => {
+    if (result.success) {
+        displayTasks(result.data);
+    }
+});
+
+// 监听任务更新事件
+service.listen('task-updated', (event) => {
+    refreshTaskDisplay(event.payload);
+});
+```
+```
+
+## Performance Optimization
+
+### Virtual Scrolling for Large Lists
+```prompt
+为大量任务列表实现虚拟滚动：
+```javascript
+class VirtualTaskList {
+    constructor(container, itemHeight = 80) {
+        this.container = container;
+        this.itemHeight = itemHeight;
+        this.visibleItems = Math.ceil(container.clientHeight / itemHeight) + 2;
+        this.scrollTop = 0;
+        this.init();
+    }
+
+    init() {
+        this.viewport = document.createElement('div');
+        this.viewport.style.height = '100%';
+        this.viewport.style.overflow = 'auto';
+        
+        this.content = document.createElement('div');
+        this.viewport.appendChild(this.content);
+        this.container.appendChild(this.viewport);
+        
+        this.viewport.addEventListener('scroll', this.handleScroll.bind(this));
+    }
+
+    render(tasks) {
+        this.tasks = tasks;
+        this.content.style.height = `${tasks.length * this.itemHeight}px`;
+        this.renderVisibleItems();
+    }
+
+    renderVisibleItems() {
+        const startIndex = Math.floor(this.scrollTop / this.itemHeight);
+        const endIndex = Math.min(startIndex + this.visibleItems, this.tasks.length);
+        
+        this.content.innerHTML = '';
+        
+        for (let i = startIndex; i < endIndex; i++) {
+            const item = this.createTaskItem(this.tasks[i], i);
+            this.content.appendChild(item);
+        }
+    }
+}
+```
+```
 const tauriService = new TauriService();
 
 // 获取设备列表

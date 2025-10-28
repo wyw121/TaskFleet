@@ -27,26 +27,26 @@ applyTo: "src-tauri/**/*.rs"
 
 ## Employee Client Specific Requirements
 
-### Device Management
-
-- 实现 ADB 设备连接管理
-- 支持最多 10 台设备同时连接
-- 设备状态实时监控
-- 任务自动分配给已连接设备
-
 ### Task Management
 
-- 通讯录管理：CSV/文本文件上传和处理
-- 精准获客：同行监控和用户 ID 收集
-- 任务不重复分配算法
-- 平台特定脚本执行（小红书/抖音）
+- 实现任务列表获取和显示
+- 任务状态更新功能
+- 任务详情查看和编辑
+- 任务筛选和搜索功能
+
+### Authentication Management
+
+- 用户登录和退出功能
+- JWT令牌管理和验证
+- 会话状态维护
+- 安全的凭证存储
 
 ### API Communication
 
-- 使用 reqwest 与服务器通信
-- 实现余额检查和扣费机制
-- 数据同步和用户认证
-- 错误重试机制
+- 使用 reqwest 与TaskFleet服务器通信
+- 实现数据同步机制
+- 用户认证和授权
+- 错误重试和恢复机制
 
 ## Error Handling
 

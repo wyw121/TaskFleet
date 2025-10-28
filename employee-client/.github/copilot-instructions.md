@@ -1,59 +1,53 @@
-# Flow Farm Employee Client - GitHub Copilot Instructions
+# TaskFleet Employee Client - GitHub Copilot Instructions
 
 ## Project Overview
 
-Flow Farm Employee Client 是一个用于员工角色的现代化桌面 GUI 应用程序，使用 **Rust** 和 **Tauri 框架** 构建。这是一个独立的员工管理和自动化客户端，提供以下功能：
+TaskFleet Employee Client 是一个用于员工角色的现代化桌面 GUI 应用程序，使用 **Rust** 和 **Tauri 框架** 构建。这是 TaskFleet 任务执行专家系统的桌面客户端，提供以下功能：
 
 - 员工身份验证和授权
-- 设备自动化管理（通过 ADB）
-- 任务执行和监控（重点：通讯录管理、精准获客）
-- 与服务器实时数据同步
-- 支持多平台社交媒体操作（小红书优先，抖音紧随，未来扩展快手、B 站等）
-- 设备管理（最多支持 10 台设备）
-- 余额检查和扣费机制
-- 关注统计和进度显示
+- 任务查看和状态更新
+- 与TaskFleet服务器实时数据同步
+- 系统托盘常驻和通知
+- 离线工作支持
+- 高效的任务管理界面
 
 **重要提醒**: 本项目使用 **Tauri 原生 GUI（Rust + HTML/CSS/JS）**，而不是 React.js 或纯 Web 框架。
 
 ## 核心模块架构
 
-### 设备管理模块
+### 认证模块
 
-- 设备编号管理（1-10）
-- 设备连接状态监控
-- ADB 自动化控制
-- 任务分配到已连接设备
+- 用户登录和会话管理
+- JWT令牌处理
+- 安全的凭证存储
 
-### 任务管理模块（重点）
+### 任务管理模块（核心）
 
-1. **通讯录管理**：
+1. **任务查看**：
+   - 获取分配的任务列表
+   - 任务详情查看
+   - 任务搜索和过滤
+   - 任务排序（按优先级、截止日期等）
 
-   - 文件上传（CSV/文本）
-   - 数据导入到服务器
-   - 自动关注执行
-   - 不重复分配任务
+2. **任务执行**：
+   - 任务状态更新（开始、暂停、完成）
+   - 添加任务备注和评论
+   - 上传任务相关文件
+   - 记录工作时间
 
-2. **精准获客（同行监控）**：
-   - 搜索条件配置
-   - 同行账号监控
-   - 评论关键词爬取
-   - 用户 ID 收集
-   - 达到阈值后自动关注
+### 数据同步模块
 
-### 关注统计模块
+- 与服务器实时通信
+- 任务状态自动同步
+- 离线数据缓存
+- 网络重连机制
 
-- 总关注人数统计
-- 每日新增关注数
-- 余额比较和检查
-- 任务进度显示
+### 通知系统
 
-### 通用机制
-
-- 余额显示和检查（超过余额禁止提交任务）
-- 自动任务分配（均匀分发到已连接设备）
-- 实时进度条显示
-- 成功关注后扣费机制
-- 平台特定脚本执行（小红书/抖音）
+- 新任务分配通知
+- 任务截止日期提醒
+- 系统托盘集成
+- 桌面通知显示
 
 ## Technology Stack
 
@@ -85,7 +79,7 @@ employee-client/
 │   ├── src/
 │   │   ├── main.rs        # Application entry point
 │   │   ├── api.rs         # API communication with server
-│   │   ├── device.rs      # Device management & ADB control
+│   │   ├── auth.rs        # Authentication service
 │   │   ├── models.rs      # Data models and structures
 │   │   └── utils.rs       # Utility functions
 │   ├── Cargo.toml         # Rust dependencies
@@ -94,7 +88,6 @@ employee-client/
 │   ├── index.html         # Main application UI
 │   ├── styles.css         # Application styling
 │   └── components/        # UI components
-├── frontend/              # Additional frontend resources
 ├── logs/                  # Application logs
 ├── public/                # Static assets
 └── target/                # Build artifacts (excluded)
@@ -212,7 +205,7 @@ cargo tauri build
 
 1. UI interactions trigger Tauri commands
 2. Rust backend processes requests
-3. API calls to Flow Farm server
+3. API calls to TaskFleet server
 4. Database operations for local storage
 5. Events update UI state
 
@@ -222,7 +215,6 @@ cargo tauri build
 
 - Unit tests for all business logic functions
 - Integration tests for API communication
-- Device automation tests (where applicable)
 - Error handling tests
 
 ### Validation Steps
@@ -280,7 +272,6 @@ cargo tauri build
 
 - **API tokens**: Store securely using Tauri's secure storage
 - **User data**: Encrypt sensitive information
-- **Device access**: Validate all ADB commands
 - **Network**: Use HTTPS for all server communication
 
 ## Important Notes for Copilot

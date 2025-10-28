@@ -1,8 +1,8 @@
-# Flow Farm Employee Client - GitHub Copilot 配置完成报告
+# TaskFleet Employee Client - GitHub Copilot 配置完成报告
 
 ## 配置概述
 
-我已经根据 GitHub 最新的 Copilot 最佳实践为您的员工桌面程序项目 **Flow Farm Employee Client** 创建了完整的 `.github` 配置结构。
+我已经根据 GitHub 最新的 Copilot 最佳实践为您的员工桌面程序项目 **TaskFleet Employee Client** 创建了完整的 `.github` 配置结构。
 
 ## 已创建/更新的文件
 
@@ -12,7 +12,7 @@
 - **用途**: 仓库级别的 GitHub Copilot 指令
 - **内容**:
   - 项目概述（员工桌面程序功能描述）
-  - 核心模块架构（设备管理、任务管理、关注统计）
+  - 核心模块架构（认证管理、任务管理、数据同步）
   - 技术栈详解（Rust + Tauri）
   - 构建和开发指令
   - 代码标准和约定
@@ -25,7 +25,7 @@
 - **内容**:
   - Rust 后端开发要求
   - Tauri 架构要求
-  - 员工客户端特定需求（设备管理、任务管理、API 通信）
+  - 员工客户端特定需求（任务管理、认证管理、API 通信）
   - 错误处理和性能优化
 
 #### `frontend.instructions.md` ✅ (已更新)
@@ -54,7 +54,7 @@
 
 #### `development-prompts.md` ✅ (新建)
 - **内容**: 员工客户端功能开发提示
-  - 设备管理功能开发
+  - 任务管理功能开发
   - 任务管理功能开发
   - 用户界面开发
   - API 和数据同步
@@ -96,10 +96,10 @@
 ### 📋 项目特定化
 - 专门针对员工桌面程序需求
 - 强调 Rust + Tauri 架构
-- 包含设备管理、任务管理等核心模块
+- 包含认证管理、任务管理等核心模块
 
 ### 🎯 平台支持
-- 小红书和抖音平台优先
+- TaskFleet 任务执行专家系统支持
 - 模块化设计支持未来扩展
 - 设备自动化和任务分配
 
@@ -151,7 +151,7 @@ cargo check
 
 ## 总结
 
-您的 Flow Farm Employee Client 项目现在已经拥有了完整的 GitHub Copilot 配置：
+您的 TaskFleet Employee Client 项目现在已经拥有了完整的 GitHub Copilot 配置：
 
 ✅ **主配置文件**: 项目级别指令和 AI 代理指令
 ✅ **路径指令**: 针对 Rust、前端、配置文件的特定指令

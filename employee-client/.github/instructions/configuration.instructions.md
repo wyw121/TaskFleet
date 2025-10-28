@@ -32,7 +32,9 @@ thiserror = "1.0"
 
 ### 应用程序设置
 
-- **应用名称**: "Flow Farm Employee Client"
+### Tauri 配置规范
+
+- **应用名称**: "TaskFleet Employee Client"
 - **版本管理**: 使用语义化版本
 - **图标和元数据**: 设置适当的应用图标和描述
 
@@ -43,7 +45,7 @@ thiserror = "1.0"
   "tauri": {
     "windows": [
       {
-        "title": "Flow Farm Employee Client",
+        "title": "TaskFleet Employee Client",
         "width": 1200,
         "height": 800,
         "minWidth": 1000,

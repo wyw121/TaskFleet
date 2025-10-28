@@ -142,9 +142,9 @@ chmod +x dev-start.sh
 3. **[快速启动指南](./docs/TaskFleet/02-QUICK_START.md)** - 动手实践
 4. **[多端协同设计](./docs/TaskFleet/03-MULTI_PLATFORM_STRATEGY.md)** - 理解双端策略
 
-### 🏢 Flow_Farm 历史项目参考
+### 🏢 参考文档
 
-1. **[完整需求文档](./docs/06-requirements/COMPLETE_REQUIREMENTS.md)** - 了解原项目全貌
+1. **[完整需求文档](./docs/06-requirements/COMPLETE_REQUIREMENTS.md)** - 深入了解项目需求
 2. **[架构可视化](./docs/01-architecture/ARCHITECTURE_VISUALIZATION_2025.md)** - 理解系统架构
 3. **[开发指南](./docs/02-development/DEVELOPMENT_GUIDE.md)** - 开发环境配置
 
@@ -152,18 +152,18 @@ chmod +x dev-start.sh
 
 ```
 TaskFleet/
-├── backend/                 # Rust + Axum 后端服务
+├── server-backend/          # Rust + Axum 后端服务
 │   ├── src/                 # 源代码
 │   ├── migrations/          # 数据库迁移
 │   ├── tests/               # 测试文件
 │   ├── Cargo.toml           # Rust 依赖配置
 │   └── .env.example         # 环境配置示例
-├── frontend/                # React + TypeScript Web前端
+├── server-frontend/         # React + TypeScript Web前端
 │   ├── src/                 # 源代码
 │   ├── public/              # 静态资源
 │   ├── package.json         # NPM 依赖配置
 │   └── ...
-├── desktop-client/          # Tauri 桌面客户端
+├── employee-client/         # Tauri 桌面客户端
 │   ├── src-tauri/           # Rust 后端代码
 │   ├── src/                 # 前端资源
 │   └── ...
@@ -173,14 +173,13 @@ TaskFleet/
 │   │   ├── 01-TECHNICAL_GUIDE.md     # 技术指南
 │   │   ├── 02-QUICK_START.md         # 快速启动
 │   │   └── 03-MULTI_PLATFORM_STRATEGY.md # 多端策略
-│   ├── 01-architecture/     # 历史架构文档 (参考)
-│   ├── 02-development/      # 开发指南 (参考)
-│   ├── 03-deployment/       # 部署文档 (参考)
-│   ├── 04-reports/          # 项目报告 (参考)
-│   ├── 05-user-guides/      # 用户手册 (参考)
-│   ├── 06-requirements/     # 需求文档 (参考)
-│   └── 07-ai-instructions/  # AI 辅助开发 (参考)
-├── docker/                  # Docker 配置
+│   ├── 01-architecture/     # 架构文档
+│   ├── 02-development/      # 开发指南
+│   ├── 03-deployment/       # 部署文档
+│   ├── 04-reports/          # 项目报告
+│   ├── 05-user-guides/      # 用户手册
+│   ├── 06-requirements/     # 需求文档
+│   └── 07-ai-instructions/  # AI 辅助开发
 ├── TaskFleet.code-workspace # VS Code 工作区配置
 ├── .env.example             # 环境配置示例
 ├── .gitignore               # Git 忽略规则
