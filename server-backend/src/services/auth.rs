@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
 use chrono::Utc;
-use uuid::Uuid;
 
 use crate::{
     models::{CreateUserRequest, LoginResponse, User, UserInfo},
@@ -61,19 +60,17 @@ impl AuthService {
             return Err(anyhow!("用户名或邮箱已存在"));
         }
 
-        // 生成用户ID和密码哈希
-        let user_id = Uuid::new_v4();
+        // 生成密码哈希
         let hashed_password = bcrypt::hash(&request.password, self.config.bcrypt_rounds)?;
         let now = Utc::now();
 
-        // 插入新用户 - 使用简化的TaskFleet字段
-        sqlx::query(
+        // 插入新用户 - 使用简化的TaskFleet字段(id会自动生成)
+        let result = sqlx::query(
             r#"
-            INSERT INTO users (id, username, email, hashed_password, role, full_name, is_active, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (username, email, hashed_password, role, full_name, is_active, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
-        .bind(user_id.to_string())
         .bind(&request.username)
         .bind(&request.email)
         .bind(&hashed_password)
@@ -84,6 +81,8 @@ impl AuthService {
         .bind(now)
         .execute(&self.database.pool)
         .await?;
+
+        let user_id = result.last_insert_rowid();
 
         // 返回用户信息
         Ok(UserInfo {
@@ -100,11 +99,11 @@ impl AuthService {
 
     pub async fn refresh_token(&self, user_id: &str) -> Result<String> {
         // 查找用户
-        let user_id = Uuid::parse_str(user_id)?;
+        let user_id: i64 = user_id.parse()?;
         let user = sqlx::query_as::<_, User>(
             "SELECT * FROM users WHERE id = ? AND is_active = 1",
         )
-        .bind(user_id.to_string())
+        .bind(user_id)
         .fetch_optional(&self.database.pool)
         .await?
         .ok_or_else(|| anyhow!("用户不存在或已被禁用"))?;

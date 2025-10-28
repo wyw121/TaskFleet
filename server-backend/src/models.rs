@@ -35,7 +35,7 @@ use validator::Validate;
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
-    pub id: Uuid,
+    pub id: i64,  // SQLite使用INTEGER类型
     pub username: String,
     pub email: String,
     pub hashed_password: String,
@@ -47,12 +47,31 @@ pub struct User {
     pub last_login: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, PartialEq)]
-#[sqlx(type_name = "TEXT")]
-#[sqlx(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum UserRole {
     ProjectManager,  // 项目管理员 - 可以创建项目、分配任务、查看统计
     Employee,        // 普通员工 - 只能查看和更新自己的任务
+}
+
+// 手动实现sqlx类型转换,支持旧的role值
+impl sqlx::Type<sqlx::Sqlite> for UserRole {
+    fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
+        <String as sqlx::Type<sqlx::Sqlite>>::type_info()
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Sqlite> for UserRole {
+    fn decode(value: sqlx::sqlite::SqliteValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <&str as sqlx::Decode<sqlx::Sqlite>>::decode(value)?;
+        UserRole::from_str(s)
+            .ok_or_else(|| format!("Unknown role: {}", s).into())
+    }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Sqlite> for UserRole {
+    fn encode_by_ref(&self, buf: &mut Vec<sqlx::sqlite::SqliteArgumentValue<'q>>) -> sqlx::encode::IsNull {
+        <&str as sqlx::Encode<sqlx::Sqlite>>::encode(self.as_str(), buf)
+    }
 }
 
 impl UserRole {
@@ -135,7 +154,7 @@ pub struct LoginResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct UserInfo {
-    pub id: Uuid,
+    pub id: i64,  // SQLite使用INTEGER类型
     pub username: String,
     pub email: String,
     pub full_name: String,

@@ -1,6 +1,5 @@
 use crate::{models::User, Database};
 use anyhow::Result;
-use uuid::Uuid;
 
 /// UserRepository: 负责所有用户相关的数据库操作
 pub struct UserRepository {
@@ -13,9 +12,9 @@ impl UserRepository {
     }
 
     /// 根据ID查询用户
-    pub async fn find_by_id(&self, id: Uuid) -> Result<Option<User>> {
+    pub async fn find_by_id(&self, id: i64) -> Result<Option<User>> {
         let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
-            .bind(id.to_string())
+            .bind(id)
             .fetch_optional(&self.database.pool)
             .await?;
         Ok(user)
@@ -48,14 +47,13 @@ impl UserRepository {
     }
 
     /// 创建新用户
-    pub async fn create(&self, user: User) -> Result<()> {
-        sqlx::query(
+    pub async fn create(&self, user: User) -> Result<User> {
+        let result = sqlx::query(
             r#"
-            INSERT INTO users (id, username, email, hashed_password, role, full_name, is_active, created_at, updated_at, last_login)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (username, email, hashed_password, role, full_name, is_active, created_at, updated_at, last_login)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
-        .bind(user.id.to_string())
         .bind(&user.username)
         .bind(&user.email)
         .bind(&user.hashed_password)
@@ -67,7 +65,11 @@ impl UserRepository {
         .bind(user.last_login)
         .execute(&self.database.pool)
         .await?;
-        Ok(())
+        
+        let user_id = result.last_insert_rowid();
+        let created_user = self.find_by_id(user_id).await?
+            .ok_or_else(|| anyhow::anyhow!("创建用户后无法查询到"))?;
+        Ok(created_user)
     }
 
     /// 更新用户信息
@@ -88,27 +90,27 @@ impl UserRepository {
         .bind(user.is_active)
         .bind(user.updated_at)
         .bind(user.last_login)
-        .bind(user.id.to_string())
+        .bind(user.id)
         .execute(&self.database.pool)
         .await?;
         Ok(())
     }
 
     /// 删除用户
-    pub async fn delete(&self, id: Uuid) -> Result<()> {
+    pub async fn delete(&self, id: i64) -> Result<()> {
         sqlx::query("DELETE FROM users WHERE id = ?")
-            .bind(id.to_string())
+            .bind(id)
             .execute(&self.database.pool)
             .await?;
         Ok(())
     }
 
     /// 更新用户最后登录时间
-    pub async fn update_last_login(&self, id: Uuid) -> Result<()> {
+    pub async fn update_last_login(&self, id: i64) -> Result<()> {
         let now = chrono::Utc::now();
         sqlx::query("UPDATE users SET last_login = ? WHERE id = ?")
             .bind(now)
-            .bind(id.to_string())
+            .bind(id)
             .execute(&self.database.pool)
             .await?;
         Ok(())

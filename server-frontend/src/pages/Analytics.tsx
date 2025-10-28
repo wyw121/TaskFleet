@@ -19,7 +19,8 @@ const Analytics: React.FC = () => {
   const loadAnalytics = async () => {
     try {
       setLoading(true);
-      const workload = await analyticsService.getUserWorkload();
+      // 修复:改为调用获取所有用户工作量的方法(无需userId参数)
+      const workload = await analyticsService.getAllUsersWorkload();
       setUserWorkload(workload);
     } catch (error) {
       console.error('Failed to load analytics:', error);

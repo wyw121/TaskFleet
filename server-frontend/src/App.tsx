@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard'
 import TaskManagement from './pages/TaskManagement'
 import ProjectManagement from './pages/ProjectManagement'
 import Analytics from './pages/Analytics'
+import UserManagement from './pages/UserManagement'
 import { RootState } from './store'
 import { clearAuthState, getCurrentUser } from './store/authSlice'
 
@@ -95,6 +96,7 @@ const App: React.FC = () => {
           <Route path="tasks" element={<TaskManagement />} />
           <Route path="projects" element={<ProjectManagement />} />
           <Route path="analytics" element={<Analytics />} />
+          <Route path="users" element={<UserManagement />} />
         </Route>
 
         {/* 404页面 - 重定向到仪表板 */}

@@ -4,7 +4,6 @@ use axum::{
     Json,
 };
 use serde::Deserialize;
-use uuid::Uuid;
 
 use crate::{
     errors::AppError,
@@ -55,11 +54,9 @@ pub async fn create_user(
 pub async fn get_user(
     State((database, _config)): State<AppState>,
     auth_context: AuthContext,
-    Path(user_id): Path<String>,
+    Path(user_id): Path<i64>,
 ) -> Result<ResponseJson<ApiResponse<UserInfo>>, AppError> {
     let user_service = UserService::new(database);
-    let user_id = Uuid::parse_str(&user_id)
-        .map_err(|_| AppError::BadRequest("无效的用户ID格式".to_string()))?;
     let user = user_service.get_user(user_id, &auth_context.user).await?;
 
     Ok(ResponseJson(ApiResponse::success(user)))
@@ -68,12 +65,10 @@ pub async fn get_user(
 pub async fn update_user(
     State((database, _config)): State<AppState>,
     auth_context: AuthContext,
-    Path(user_id): Path<String>,
+    Path(user_id): Path<i64>,
     Json(request): Json<UpdateUserRequest>,
 ) -> Result<ResponseJson<ApiResponse<UserInfo>>, AppError> {
     let user_service = UserService::new(database);
-    let user_id = Uuid::parse_str(&user_id)
-        .map_err(|_| AppError::BadRequest("无效的用户ID格式".to_string()))?;
     let user = user_service
         .update_user(user_id, request, &auth_context.user)
         .await?;
@@ -84,11 +79,9 @@ pub async fn update_user(
 pub async fn delete_user(
     State((database, _config)): State<AppState>,
     auth_context: AuthContext,
-    Path(user_id): Path<String>,
+    Path(user_id): Path<i64>,
 ) -> Result<ResponseJson<ApiResponse<()>>, AppError> {
     let user_service = UserService::new(database);
-    let user_id = Uuid::parse_str(&user_id)
-        .map_err(|_| AppError::BadRequest("无效的用户ID格式".to_string()))?;
     user_service.delete_user(user_id, &auth_context.user).await?;
 
     Ok(ResponseJson(ApiResponse::success(())))

@@ -316,6 +316,8 @@ impl From<sqlx::Error> for AppError {
 
 impl From<anyhow::Error> for AppError {
     fn from(err: anyhow::Error) -> Self {
+        // 在开发环境记录详细错误
+        tracing::error!("Anyhow error: {:?}", err);
         AppError::Internal(err.to_string())
     }
 }

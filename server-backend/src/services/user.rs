@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Result};
-use uuid::Uuid;
 
 use crate::{
     models::{CreateUserRequest, UpdateUserRequest, User, UserInfo, UserRole},
@@ -38,7 +37,7 @@ impl UserService {
 
     pub async fn get_user(
         &self,
-        user_id: Uuid,
+        user_id: i64,
         current_user: &UserInfo,
     ) -> Result<UserInfo> {
         // 用户只能查看自己的信息，项目管理员可以查看所有用户
@@ -72,12 +71,11 @@ impl UserService {
         }
 
         // 创建用户
-        let user_id = Uuid::new_v4();
         let hashed_password = hash_password(&request.password)?;
         let now = chrono::Utc::now();
 
         let new_user = User {
-            id: user_id,
+            id: 0,  // 数据库自动生成
             username: request.username.clone(),
             email: request.email.clone(),
             hashed_password,
@@ -89,10 +87,10 @@ impl UserService {
             last_login: None,
         };
 
-        self.user_repository.create(new_user).await?;
+        let created_user = self.user_repository.create(new_user).await?;
 
         Ok(UserInfo {
-            id: user_id,
+            id: created_user.id,
             username: request.username,
             email: request.email,
             full_name: request.full_name,
@@ -105,7 +103,7 @@ impl UserService {
 
     pub async fn update_user(
         &self,
-        user_id: Uuid,
+        user_id: i64,
         request: UpdateUserRequest,
         current_user: &UserInfo,
     ) -> Result<UserInfo> {
@@ -163,7 +161,7 @@ impl UserService {
 
     pub async fn delete_user(
         &self,
-        user_id: Uuid,
+        user_id: i64,
         current_user: &UserInfo,
     ) -> Result<()> {
         // 只有项目管理员可以删除用户
