@@ -1,5 +1,6 @@
 /**
  * TaskFleet - 用户管理页面
+ * 支持多租户权限控制
  */
 
 import React, { useEffect, useState } from 'react';
@@ -7,6 +8,8 @@ import { Table, Button, Space, Tag, message, Modal, Form, Input, Select, Card } 
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { apiClient } from '../services/api';
+import { usePermissions } from '../hooks/usePermissions';
+import { UserRole } from '../types/user';
 
 interface User {
   id: number;
@@ -25,6 +28,7 @@ const UserManagement: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form] = Form.useForm();
+  const { isSystemAdmin, canManageUsers } = usePermissions();
 
   // 加载用户列表
   const loadUsers = async () => {
@@ -110,7 +114,7 @@ const UserManagement: React.FC = () => {
   const getRoleColor = (role: string) => {
     const roleColors: Record<string, string> = {
       SystemAdmin: 'red',
-      ProjectManager: 'blue',
+      CompanyAdmin: 'blue',
       Employee: 'green',
     };
     return roleColors[role] || 'default';
@@ -120,7 +124,7 @@ const UserManagement: React.FC = () => {
   const getRoleName = (role: string) => {
     const roleNames: Record<string, string> = {
       SystemAdmin: '系统管理员',
-      ProjectManager: '项目管理员',
+      CompanyAdmin: '公司管理员',
       Employee: '普通员工',
     };
     return roleNames[role] || role;
@@ -194,6 +198,7 @@ const UserManagement: React.FC = () => {
             size="small"
             icon={<EditOutlined />}
             onClick={() => showModal(record)}
+            disabled={!canManageUsers()}
           >
             编辑
           </Button>
@@ -203,6 +208,7 @@ const UserManagement: React.FC = () => {
             danger
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
+            disabled={!isSystemAdmin()} // 仅系统管理员可以删除用户
           >
             删除
           </Button>
@@ -216,13 +222,15 @@ const UserManagement: React.FC = () => {
       <Card
         title="用户管理"
         extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => showModal()}
-          >
-            新建用户
-          </Button>
+          canManageUsers() && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => showModal()}
+            >
+              新建用户
+            </Button>
+          )
         }
       >
         <Table

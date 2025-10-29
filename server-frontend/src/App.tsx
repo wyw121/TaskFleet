@@ -12,6 +12,8 @@ import Analytics from './pages/Analytics'
 import UserManagement from './pages/UserManagement'
 import { RootState } from './store'
 import { clearAuthState, getCurrentUser } from './store/authSlice'
+import { ProtectedRoute } from './components/ProtectedRoute'
+import { UserRole } from './types/user'
 
 const App: React.FC = () => {
   const dispatch = useDispatch()
@@ -89,14 +91,59 @@ const App: React.FC = () => {
           element={<Navigate to="/dashboard" replace />}
         />
 
-        {/* TaskFleet主应用路由 */}
+        {/* TaskFleet主应用路由 - 所有路由都需要认证 */}
         <Route path="/" element={<AppLayout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="tasks" element={<TaskManagement />} />
-          <Route path="projects" element={<ProjectManagement />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="users" element={<UserManagement />} />
+          
+          {/* 仪表板 - 所有角色都可访问 */}
+          <Route 
+            path="dashboard" 
+            element={
+              <ProtectedRoute allowedRoles={[UserRole.SystemAdmin, UserRole.CompanyAdmin, UserRole.Employee]}>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 任务管理 - 所有角色都可访问 */}
+          <Route 
+            path="tasks" 
+            element={
+              <ProtectedRoute allowedRoles={[UserRole.SystemAdmin, UserRole.CompanyAdmin, UserRole.Employee]}>
+                <TaskManagement />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 项目管理 - 所有角色都可访问 */}
+          <Route 
+            path="projects" 
+            element={
+              <ProtectedRoute allowedRoles={[UserRole.SystemAdmin, UserRole.CompanyAdmin, UserRole.Employee]}>
+                <ProjectManagement />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 数据分析 - 仅管理员可访问 */}
+          <Route 
+            path="analytics" 
+            element={
+              <ProtectedRoute allowedRoles={[UserRole.SystemAdmin, UserRole.CompanyAdmin]}>
+                <Analytics />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 用户管理 - 仅管理员可访问 */}
+          <Route 
+            path="users" 
+            element={
+              <ProtectedRoute allowedRoles={[UserRole.SystemAdmin, UserRole.CompanyAdmin]}>
+                <UserManagement />
+              </ProtectedRoute>
+            } 
+          />
         </Route>
 
         {/* 404页面 - 重定向到仪表板 */}

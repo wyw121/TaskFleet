@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
+use std::str::FromStr;
 
 // ==================== 数据模型说明 ====================
 // 
@@ -165,6 +166,15 @@ impl UserRole {
             "project_manager" => Some(UserRole::CompanyAdmin),
             _ => None,
         }
+    }
+}
+
+// 实现FromStr trait用于handlers中解析
+impl FromStr for UserRole {
+    type Err = String;
+    
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_str(s).ok_or_else(|| format!("未知的角色: {}", s))
     }
 }
 
@@ -362,6 +372,9 @@ pub struct Task {
     pub status: TaskStatus,
     pub priority: TaskPriority,
     
+    // 多租户隔离
+    pub company_id: Option<i64>,          // 所属公司ID,用于多租户数据隔离
+    
     // 关联关系
     pub project_id: Option<Uuid>,        // 所属项目（可选）
     pub assigned_to: Option<Uuid>,        // 分配给的员工（可选）
@@ -490,6 +503,8 @@ pub struct Project {
     pub description: Option<String>,
     /// 项目状态
     pub status: ProjectStatus,
+    /// 多租户隔离 - 所属公司ID
+    pub company_id: Option<i64>,
     /// 项目经理ID
     pub manager_id: Uuid,
     /// 项目开始日期

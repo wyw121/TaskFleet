@@ -18,7 +18,7 @@ impl ProjectService {
     }
 
     /// 创建新项目
-    pub async fn create_project(&self, request: CreateProjectRequest) -> Result<ProjectInfo, AppError> {
+    pub async fn create_project(&self, request: CreateProjectRequest, company_id: Option<i64>) -> Result<ProjectInfo, AppError> {
         // 验证请求参数
         request.validate()
             .map_err(|e| AppError::BadRequest(format!("参数验证失败: {}", e)))?;
@@ -31,7 +31,7 @@ impl ProjectService {
         }
 
         // 创建项目
-        let project = self.project_repo.create(request).await?;
+        let project = self.project_repo.create(request, company_id).await?;
 
         Ok(ProjectInfo::from(project))
     }
@@ -87,15 +87,21 @@ impl ProjectService {
         Ok(projects.into_iter().map(ProjectInfo::from).collect())
     }
 
-    /// 获取项目经理的项目列表
-    pub async fn list_projects_by_manager(&self, manager_id: Uuid) -> Result<Vec<ProjectInfo>, AppError> {
-        let projects = self.project_repo.find_by_manager(manager_id).await?;
+    /// 根据公司ID获取项目列表(多租户隔离)
+    pub async fn list_projects_by_company(&self, company_id: i64) -> Result<Vec<ProjectInfo>, AppError> {
+        let projects = self.project_repo.list_by_company_id(company_id).await?;
         Ok(projects.into_iter().map(ProjectInfo::from).collect())
     }
 
-    /// 获取特定状态的项目列表
-    pub async fn list_projects_by_status(&self, status: ProjectStatus) -> Result<Vec<ProjectInfo>, AppError> {
-        let projects = self.project_repo.find_by_status(status).await?;
+    /// 获取项目经理的项目列表(支持company_id过滤)
+    pub async fn list_projects_by_manager(&self, manager_id: Uuid, company_id: Option<i64>) -> Result<Vec<ProjectInfo>, AppError> {
+        let projects = self.project_repo.find_by_manager(manager_id, company_id).await?;
+        Ok(projects.into_iter().map(ProjectInfo::from).collect())
+    }
+
+    /// 获取特定状态的项目列表(支持company_id过滤)
+    pub async fn list_projects_by_status(&self, status: ProjectStatus, company_id: Option<i64>) -> Result<Vec<ProjectInfo>, AppError> {
+        let projects = self.project_repo.find_by_status(status, company_id).await?;
         Ok(projects.into_iter().map(ProjectInfo::from).collect())
     }
 

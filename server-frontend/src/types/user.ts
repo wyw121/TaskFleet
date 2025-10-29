@@ -6,8 +6,9 @@
  * 用户角色枚举
  */
 export enum UserRole {
-  ProjectManager = 'project_manager',
-  Employee = 'employee',
+  SystemAdmin = 'system_admin',      // 系统管理员 - 可管理所有公司
+  CompanyAdmin = 'company_admin',    // 公司管理员 - 只能管理本公司数据
+  Employee = 'employee',             // 普通员工 - 只能查看自己的任务
 }
 
 /**
@@ -20,6 +21,7 @@ export interface User {
   role: UserRole;
   full_name: string;
   is_active: boolean;
+  company_id?: number;               // 所属公司ID(SystemAdmin可为空)
   created_at: string;
   updated_at: string;
   last_login?: string;

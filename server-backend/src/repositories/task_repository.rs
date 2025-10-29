@@ -15,7 +15,7 @@ impl TaskRepository {
     }
 
     /// 创建新任务
-    pub async fn create(&self, request: CreateTaskRequest, created_by: Uuid) -> Result<Task, AppError> {
+    pub async fn create(&self, request: CreateTaskRequest, created_by: Uuid, company_id: Option<i64>) -> Result<Task, AppError> {
         let task = Task {
             id: Uuid::new_v4(),
             title: request.title.clone(),
@@ -31,6 +31,7 @@ impl TaskRepository {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             completed_at: None,
+            company_id,  // 多租户隔离
         };
 
         sqlx::query(
@@ -38,9 +39,9 @@ impl TaskRepository {
             INSERT INTO tasks (
                 id, title, description, status, priority, project_id, 
                 assigned_to, created_by, due_date, estimated_hours, actual_hours,
-                created_at, updated_at, completed_at
+                created_at, updated_at, completed_at, company_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(&task.id)
@@ -57,6 +58,7 @@ impl TaskRepository {
         .bind(&task.created_at)
         .bind(&task.updated_at)
         .bind(&task.completed_at)
+        .bind(&task.company_id)
         .execute(&self.db.pool)
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
@@ -152,6 +154,19 @@ impl TaskRepository {
         Ok(())
     }
 
+    /// 根据公司ID获取任务列表(多租户隔离)
+    pub async fn list_by_company_id(&self, company_id: i64) -> Result<Vec<Task>, AppError> {
+        let tasks = sqlx::query_as::<_, Task>(
+            "SELECT * FROM tasks WHERE company_id = ? ORDER BY created_at DESC"
+        )
+        .bind(company_id)
+        .fetch_all(&self.db.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        Ok(tasks)
+    }
+
     /// 获取所有任务列表
     pub async fn list_all(&self) -> Result<Vec<Task>, AppError> {
         let tasks = sqlx::query_as::<_, Task>(
@@ -164,43 +179,70 @@ impl TaskRepository {
         Ok(tasks)
     }
 
-    /// 根据项目ID获取任务列表
-    pub async fn find_by_project(&self, project_id: Uuid) -> Result<Vec<Task>, AppError> {
-        let tasks = sqlx::query_as::<_, Task>(
-            "SELECT * FROM tasks WHERE project_id = ? ORDER BY created_at DESC"
-        )
-        .bind(project_id)
-        .fetch_all(&self.db.pool)
-        .await
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    /// 根据项目ID获取任务列表(支持company_id过滤)
+    pub async fn find_by_project(&self, project_id: Uuid, company_id: Option<i64>) -> Result<Vec<Task>, AppError> {
+        let tasks = if let Some(cid) = company_id {
+            sqlx::query_as::<_, Task>(
+                "SELECT * FROM tasks WHERE project_id = ? AND company_id = ? ORDER BY created_at DESC"
+            )
+            .bind(project_id)
+            .bind(cid)
+            .fetch_all(&self.db.pool)
+            .await
+        } else {
+            sqlx::query_as::<_, Task>(
+                "SELECT * FROM tasks WHERE project_id = ? ORDER BY created_at DESC"
+            )
+            .bind(project_id)
+            .fetch_all(&self.db.pool)
+            .await
+        };
 
-        Ok(tasks)
+        tasks.map_err(|e| AppError::DatabaseError(e.to_string()))
     }
 
-    /// 根据分配人获取任务列表
-    pub async fn find_by_assignee(&self, user_id: Uuid) -> Result<Vec<Task>, AppError> {
-        let tasks = sqlx::query_as::<_, Task>(
-            "SELECT * FROM tasks WHERE assigned_to = ? ORDER BY due_date ASC, priority DESC"
-        )
-        .bind(user_id)
-        .fetch_all(&self.db.pool)
-        .await
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    /// 根据分配人获取任务列表(支持company_id过滤)
+    pub async fn find_by_assignee(&self, user_id: Uuid, company_id: Option<i64>) -> Result<Vec<Task>, AppError> {
+        let tasks = if let Some(cid) = company_id {
+            sqlx::query_as::<_, Task>(
+                "SELECT * FROM tasks WHERE assigned_to = ? AND company_id = ? ORDER BY due_date ASC, priority DESC"
+            )
+            .bind(user_id)
+            .bind(cid)
+            .fetch_all(&self.db.pool)
+            .await
+        } else {
+            sqlx::query_as::<_, Task>(
+                "SELECT * FROM tasks WHERE assigned_to = ? ORDER BY due_date ASC, priority DESC"
+            )
+            .bind(user_id)
+            .fetch_all(&self.db.pool)
+            .await
+        };
 
-        Ok(tasks)
+        tasks.map_err(|e| AppError::DatabaseError(e.to_string()))
     }
 
-    /// 根据状态获取任务列表
-    pub async fn find_by_status(&self, status: TaskStatus) -> Result<Vec<Task>, AppError> {
-        let tasks = sqlx::query_as::<_, Task>(
-            "SELECT * FROM tasks WHERE status = ? ORDER BY created_at DESC"
-        )
-        .bind(status)
-        .fetch_all(&self.db.pool)
-        .await
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    /// 根据状态获取任务列表(支持company_id过滤)
+    pub async fn find_by_status(&self, status: TaskStatus, company_id: Option<i64>) -> Result<Vec<Task>, AppError> {
+        let tasks = if let Some(cid) = company_id {
+            sqlx::query_as::<_, Task>(
+                "SELECT * FROM tasks WHERE status = ? AND company_id = ? ORDER BY created_at DESC"
+            )
+            .bind(status)
+            .bind(cid)
+            .fetch_all(&self.db.pool)
+            .await
+        } else {
+            sqlx::query_as::<_, Task>(
+                "SELECT * FROM tasks WHERE status = ? ORDER BY created_at DESC"
+            )
+            .bind(status)
+            .fetch_all(&self.db.pool)
+            .await
+        };
 
-        Ok(tasks)
+        tasks.map_err(|e| AppError::DatabaseError(e.to_string()))
     }
 
     /// 更新任务状态

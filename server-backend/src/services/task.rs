@@ -18,13 +18,13 @@ impl TaskService {
     }
 
     /// 创建新任务
-    pub async fn create_task(&self, request: CreateTaskRequest, created_by: Uuid) -> Result<TaskInfo, AppError> {
+    pub async fn create_task(&self, request: CreateTaskRequest, created_by: Uuid, company_id: Option<i64>) -> Result<TaskInfo, AppError> {
         // 验证请求参数
         request.validate()
             .map_err(|e| AppError::BadRequest(format!("参数验证失败: {}", e)))?;
 
         // 创建任务
-        let task = self.task_repo.create(request, created_by).await?;
+        let task = self.task_repo.create(request, created_by, company_id).await?;
 
         Ok(TaskInfo::from(task))
     }
@@ -60,21 +60,27 @@ impl TaskService {
         Ok(tasks.into_iter().map(TaskInfo::from).collect())
     }
 
-    /// 获取项目的任务列表
-    pub async fn list_tasks_by_project(&self, project_id: Uuid) -> Result<Vec<TaskInfo>, AppError> {
-        let tasks = self.task_repo.find_by_project(project_id).await?;
+    /// 根据公司ID获取任务列表(多租户隔离)
+    pub async fn list_tasks_by_company(&self, company_id: i64) -> Result<Vec<TaskInfo>, AppError> {
+        let tasks = self.task_repo.list_by_company_id(company_id).await?;
         Ok(tasks.into_iter().map(TaskInfo::from).collect())
     }
 
-    /// 获取分配给某员工的任务列表
-    pub async fn list_tasks_by_assignee(&self, user_id: Uuid) -> Result<Vec<TaskInfo>, AppError> {
-        let tasks = self.task_repo.find_by_assignee(user_id).await?;
+    /// 获取项目的任务列表(支持company_id过滤)
+    pub async fn list_tasks_by_project(&self, project_id: Uuid, company_id: Option<i64>) -> Result<Vec<TaskInfo>, AppError> {
+        let tasks = self.task_repo.find_by_project(project_id, company_id).await?;
         Ok(tasks.into_iter().map(TaskInfo::from).collect())
     }
 
-    /// 获取特定状态的任务列表
-    pub async fn list_tasks_by_status(&self, status: TaskStatus) -> Result<Vec<TaskInfo>, AppError> {
-        let tasks = self.task_repo.find_by_status(status).await?;
+    /// 获取分配给某员工的任务列表(支持company_id过滤)
+    pub async fn list_tasks_by_assignee(&self, user_id: Uuid, company_id: Option<i64>) -> Result<Vec<TaskInfo>, AppError> {
+        let tasks = self.task_repo.find_by_assignee(user_id, company_id).await?;
+        Ok(tasks.into_iter().map(TaskInfo::from).collect())
+    }
+
+    /// 获取特定状态的任务列表(支持company_id过滤)
+    pub async fn list_tasks_by_status(&self, status: TaskStatus, company_id: Option<i64>) -> Result<Vec<TaskInfo>, AppError> {
+        let tasks = self.task_repo.find_by_status(status, company_id).await?;
         Ok(tasks.into_iter().map(TaskInfo::from).collect())
     }
 

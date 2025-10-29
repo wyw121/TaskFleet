@@ -74,6 +74,14 @@ pub async fn create_app(database: Database, config: Config) -> Router {
         .route("/api/v1/users/:id", put(handlers::users::update_user))
         .route("/api/v1/users/:id", delete(handlers::users::delete_user))
         
+        // 公司管理(SystemAdmin专用)
+        .route("/api/v1/companies", get(handlers::company::list_companies))
+        .route("/api/v1/companies", post(handlers::company::create_company))
+        .route("/api/v1/companies/:id", get(handlers::company::get_company))
+        .route("/api/v1/companies/:id", put(handlers::company::update_company))
+        .route("/api/v1/companies/:id", delete(handlers::company::delete_company))
+        .route("/api/v1/companies/:id/toggle-status", post(handlers::company::toggle_company_status))
+        
         // 任务管理 API (临时实现：返回空数组避免404)
         .route("/api/v1/tasks", get(handlers::tasks_temp::list_tasks))
         .route("/api/v1/tasks/:id", get(handlers::tasks_temp::get_task))

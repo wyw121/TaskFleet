@@ -1,81 +1,174 @@
-import React from 'react'
-import { useSelector } from 'react-redux'
-import { Navigate } from 'react-router-dom'
-import { RootState } from '../store'
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
+import { UserRole } from '../types/user';
+import { Result, Button } from 'antd';
 
-export type UserRole = 'system_admin' | 'user_admin' | 'employee'
+/**
+ * 路由权限配置
+ */
+interface RoutePermission {
+  /** 允许访问的角色列表 */
+  allowedRoles: UserRole[];
+  /** 是否需要认证 */
+  requireAuth?: boolean;
+}
 
+/**
+ * 权限守卫组件属性
+ */
 interface ProtectedRouteProps {
-  children: React.ReactNode
-  requiredRole: UserRole
-  redirectTo?: string
+  /** 子组件 */
+  children: React.ReactNode;
+  /** 允许访问的角色 */
+  allowedRoles?: UserRole[];
+  /** 重定向路径(无权限时) */
+  redirectTo?: string;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+/**
+ * 权限守卫组件
+ * 根据用户角色控制路由访问
+ */
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
-  requiredRole,
-  redirectTo = '/unauthorized'
+  allowedRoles = [],
+  redirectTo = '/dashboard',
 }) => {
-  const { isAuthenticated, user, loading } = useSelector((state: RootState) => state.auth)
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
 
-  const checkRole = (userRole: string | undefined, required: UserRole): boolean => {
-    if (!userRole || !required) return false
-    const cleanUserRole = userRole.trim()
-    const cleanRequired = required.trim()
-    return cleanUserRole === cleanRequired
+  // 未认证则重定向到登录页
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
   }
 
-  // 如果正在加载，显示加载页面
-  if (loading) {
+  // 如果未指定角色限制,则允许所有已认证用户访问
+  if (allowedRoles.length === 0) {
+    return <>{children}</>;
+  }
+
+  // 检查用户角色是否在允许列表中
+  const hasPermission = allowedRoles.includes(user.role);
+
+  if (!hasPermission) {
+    // 无权限时显示403页面
     return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        fontSize: '16px'
-      }}>
-        <div style={{ marginBottom: '20px' }}>验证权限中...</div>
-        <div style={{ fontSize: '12px', color: '#666' }}>
-          路径: {location.pathname} | 需要角色: {requiredRole}
-        </div>
-      </div>
-    )
+      <Result
+        status="403"
+        title="403"
+        subTitle="抱歉,您没有权限访问此页面。"
+        extra={
+          <Button type="primary" onClick={() => window.location.href = redirectTo}>
+            返回主页
+          </Button>
+        }
+      />
+    );
   }
 
-  // 如果用户未认证，重定向到登录页
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />
-  }
+  return <>{children}</>;
+};
 
-  // 如果用户为空，但是认证状态为true，这是一个异常情况
-  if (!user) {
-    return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        fontSize: '16px'
-      }}>
-        <div style={{ marginBottom: '20px' }}>用户信息加载中...</div>
-        <div style={{ fontSize: '12px', color: '#666' }}>
-          认证状态异常，请刷新页面
-        </div>
-      </div>
-    )
-  }
+/**
+ * 检查用户是否有指定角色
+ */
+export const useHasRole = (roles: UserRole | UserRole[]): boolean => {
+  const { user } = useSelector((state: RootState) => state.auth);
+  
+  if (!user) return false;
+  
+  const roleArray = Array.isArray(roles) ? roles : [roles];
+  return roleArray.includes(user.role);
+};
 
-  // 检查用户角色权限
-  const hasRequiredRole = checkRole(user.role, requiredRole)
+/**
+ * 检查用户是否为系统管理员
+ */
+export const useIsSystemAdmin = (): boolean => {
+  return useHasRole(UserRole.SystemAdmin);
+};
 
-  if (!hasRequiredRole) {
-    return <Navigate to={redirectTo} replace />
-  }
+/**
+ * 检查用户是否为公司管理员
+ */
+export const useIsCompanyAdmin = (): boolean => {
+  return useHasRole(UserRole.CompanyAdmin);
+};
 
-  return <>{children}</>
-}
+/**
+ * 检查用户是否为普通员工
+ */
+export const useIsEmployee = (): boolean => {
+  return useHasRole(UserRole.Employee);
+};
 
-export default ProtectedRoute
+/**
+ * 检查用户是否有管理权限(系统管理员或公司管理员)
+ */
+export const useHasAdminRole = (): boolean => {
+  return useHasRole([UserRole.SystemAdmin, UserRole.CompanyAdmin]);
+};
+
+/**
+ * 路由权限配置表
+ */
+export const ROUTE_PERMISSIONS: Record<string, RoutePermission> = {
+  // 公司管理 - 仅系统管理员
+  '/companies': {
+    allowedRoles: [UserRole.SystemAdmin],
+    requireAuth: true,
+  },
+  
+  // 用户管理 - 系统管理员和公司管理员
+  '/users': {
+    allowedRoles: [UserRole.SystemAdmin, UserRole.CompanyAdmin],
+    requireAuth: true,
+  },
+  
+  // 任务管理 - 所有角色
+  '/tasks': {
+    allowedRoles: [UserRole.SystemAdmin, UserRole.CompanyAdmin, UserRole.Employee],
+    requireAuth: true,
+  },
+  
+  // 项目管理 - 所有角色
+  '/projects': {
+    allowedRoles: [UserRole.SystemAdmin, UserRole.CompanyAdmin, UserRole.Employee],
+    requireAuth: true,
+  },
+  
+  // 数据分析 - 系统管理员和公司管理员
+  '/analytics': {
+    allowedRoles: [UserRole.SystemAdmin, UserRole.CompanyAdmin],
+    requireAuth: true,
+  },
+  
+  // 仪表板 - 所有角色
+  '/dashboard': {
+    allowedRoles: [UserRole.SystemAdmin, UserRole.CompanyAdmin, UserRole.Employee],
+    requireAuth: true,
+  },
+};
+
+/**
+ * 获取指定路径的权限配置
+ */
+export const getRoutePermission = (path: string): RoutePermission | undefined => {
+  return ROUTE_PERMISSIONS[path];
+};
+
+/**
+ * 检查用户是否有访问指定路径的权限
+ */
+export const useCanAccessRoute = (path: string): boolean => {
+  const { user } = useSelector((state: RootState) => state.auth);
+  const permission = getRoutePermission(path);
+  
+  if (!permission) return true; // 未配置权限的路由默认允许访问
+  if (!user) return false;
+  
+  return permission.allowedRoles.includes(user.role);
+};
+
+export default ProtectedRoute;

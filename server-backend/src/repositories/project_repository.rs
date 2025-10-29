@@ -15,7 +15,7 @@ impl ProjectRepository {
     }
 
     /// 创建新项目
-    pub async fn create(&self, request: CreateProjectRequest) -> Result<Project, AppError> {
+    pub async fn create(&self, request: CreateProjectRequest, company_id: Option<i64>) -> Result<Project, AppError> {
         let project = Project {
             id: Uuid::new_v4(),
             name: request.name,
@@ -28,6 +28,7 @@ impl ProjectRepository {
             actual_cost: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            company_id,  // 多租户隔离
         };
 
         sqlx::query(
@@ -35,9 +36,9 @@ impl ProjectRepository {
             INSERT INTO projects (
                 id, name, description, status, manager_id, 
                 start_date, end_date, budget, actual_cost,
-                created_at, updated_at
+                created_at, updated_at, company_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(&project.id)
@@ -51,6 +52,7 @@ impl ProjectRepository {
         .bind(&project.actual_cost)
         .bind(&project.created_at)
         .bind(&project.updated_at)
+        .bind(&project.company_id)
         .execute(&self.db.pool)
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
@@ -144,6 +146,19 @@ impl ProjectRepository {
         Ok(())
     }
 
+    /// 根据公司ID获取项目列表(多租户隔离)
+    pub async fn list_by_company_id(&self, company_id: i64) -> Result<Vec<Project>, AppError> {
+        let projects = sqlx::query_as::<_, Project>(
+            "SELECT * FROM projects WHERE company_id = ? ORDER BY created_at DESC"
+        )
+        .bind(company_id)
+        .fetch_all(&self.db.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        Ok(projects)
+    }
+
     /// 获取所有项目列表
     pub async fn list_all(&self) -> Result<Vec<Project>, AppError> {
         let projects = sqlx::query_as::<_, Project>(
@@ -156,30 +171,48 @@ impl ProjectRepository {
         Ok(projects)
     }
 
-    /// 根据项目经理获取项目列表
-    pub async fn find_by_manager(&self, manager_id: Uuid) -> Result<Vec<Project>, AppError> {
-        let projects = sqlx::query_as::<_, Project>(
-            "SELECT * FROM projects WHERE manager_id = ? ORDER BY created_at DESC"
-        )
-        .bind(manager_id)
-        .fetch_all(&self.db.pool)
-        .await
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    /// 根据项目经理获取项目列表(支持company_id过滤)
+    pub async fn find_by_manager(&self, manager_id: Uuid, company_id: Option<i64>) -> Result<Vec<Project>, AppError> {
+        let projects = if let Some(cid) = company_id {
+            sqlx::query_as::<_, Project>(
+                "SELECT * FROM projects WHERE manager_id = ? AND company_id = ? ORDER BY created_at DESC"
+            )
+            .bind(manager_id)
+            .bind(cid)
+            .fetch_all(&self.db.pool)
+            .await
+        } else {
+            sqlx::query_as::<_, Project>(
+                "SELECT * FROM projects WHERE manager_id = ? ORDER BY created_at DESC"
+            )
+            .bind(manager_id)
+            .fetch_all(&self.db.pool)
+            .await
+        };
 
-        Ok(projects)
+        projects.map_err(|e| AppError::DatabaseError(e.to_string()))
     }
 
-    /// 根据状态获取项目列表
-    pub async fn find_by_status(&self, status: ProjectStatus) -> Result<Vec<Project>, AppError> {
-        let projects = sqlx::query_as::<_, Project>(
-            "SELECT * FROM projects WHERE status = ? ORDER BY created_at DESC"
-        )
-        .bind(status)
-        .fetch_all(&self.db.pool)
-        .await
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    /// 根据状态获取项目列表(支持company_id过滤)
+    pub async fn find_by_status(&self, status: ProjectStatus, company_id: Option<i64>) -> Result<Vec<Project>, AppError> {
+        let projects = if let Some(cid) = company_id {
+            sqlx::query_as::<_, Project>(
+                "SELECT * FROM projects WHERE status = ? AND company_id = ? ORDER BY created_at DESC"
+            )
+            .bind(status)
+            .bind(cid)
+            .fetch_all(&self.db.pool)
+            .await
+        } else {
+            sqlx::query_as::<_, Project>(
+                "SELECT * FROM projects WHERE status = ? ORDER BY created_at DESC"
+            )
+            .bind(status)
+            .fetch_all(&self.db.pool)
+            .await
+        };
 
-        Ok(projects)
+        projects.map_err(|e| AppError::DatabaseError(e.to_string()))
     }
 
     /// 获取项目任务数量统计
