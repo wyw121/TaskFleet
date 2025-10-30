@@ -23,7 +23,7 @@ impl Database {
                 username TEXT UNIQUE NOT NULL,
                 email TEXT UNIQUE,
                 hashed_password TEXT NOT NULL,
-                role TEXT NOT NULL CHECK (role IN ('system_admin', 'user_admin', 'employee')),
+                role TEXT NOT NULL CHECK (role IN ('platform_admin', 'project_manager', 'task_executor')),
                 is_active BOOLEAN DEFAULT TRUE,
                 is_verified BOOLEAN DEFAULT FALSE,
                 parent_id INTEGER,
@@ -35,7 +35,8 @@ impl Database {
                 balance REAL DEFAULT 1000.0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                last_login DATETIME
+                last_login DATETIME,
+                company_id INTEGER
             )
             "#,
         )
@@ -181,9 +182,9 @@ impl Database {
         .execute(&self.pool)
         .await?;
 
-        // 插入默认系统管理员（如果不存在）
+        // 插入默认系统管理员(如果不存在)
         let admin_exists =
-            sqlx::query("SELECT COUNT(*) as count FROM users WHERE role = 'system_admin'")
+            sqlx::query("SELECT COUNT(*) as count FROM users WHERE role = 'platform_admin'")
                 .fetch_one(&self.pool)
                 .await?
                 .get::<i64, _>("count")
@@ -201,7 +202,7 @@ impl Database {
             .bind("admin")
             .bind("admin@flowfarm.com")
             .bind(&password_hash)
-            .bind("system_admin")
+            .bind("platform_admin")
             .bind(true)
             .execute(&self.pool)
             .await?;
@@ -288,7 +289,7 @@ impl Database {
             .bind("company_admin_1")
             .bind("company_admin_1@example.com")
             .bind(&password_hash)
-            .bind("user_admin")
+            .bind("project_manager")
             .bind("company_001")
             .bind(true)
             .bind(50)
@@ -305,7 +306,7 @@ impl Database {
             .bind("company_admin_2")
             .bind("company_admin_2@example.com")
             .bind(&password_hash)
-            .bind("user_admin")
+            .bind("project_manager")
             .bind("company_002")
             .bind(true)
             .bind(30)
@@ -329,7 +330,7 @@ impl Database {
                 .bind(username)
                 .bind(email)
                 .bind(&password_hash)
-                .bind("employee")
+                .bind("task_executor")
                 .bind(company)
                 .bind(true)
                 .execute(&self.pool)

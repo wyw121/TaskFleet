@@ -113,6 +113,10 @@ const UserManagement: React.FC = () => {
   // 角色标签颜色
   const getRoleColor = (role: string) => {
     const roleColors: Record<string, string> = {
+      PlatformAdmin: 'red',
+      ProjectManager: 'blue',
+      TaskExecutor: 'green',
+      // 兼容旧的角色名称
       SystemAdmin: 'red',
       CompanyAdmin: 'blue',
       Employee: 'green',
@@ -123,9 +127,13 @@ const UserManagement: React.FC = () => {
   // 角色中文名
   const getRoleName = (role: string) => {
     const roleNames: Record<string, string> = {
-      SystemAdmin: '系统管理员',
-      CompanyAdmin: '公司管理员',
-      Employee: '普通员工',
+      PlatformAdmin: '平台管理员',
+      ProjectManager: '项目经理',
+      TaskExecutor: '任务执行者',
+      // 兼容旧的角色名称
+      SystemAdmin: '平台管理员',
+      CompanyAdmin: '项目经理',
+      Employee: '任务执行者',
     };
     return roleNames[role] || role;
   };
@@ -312,9 +320,9 @@ const UserManagement: React.FC = () => {
             rules={[{ required: true, message: '请选择角色' }]}
           >
             <Select placeholder="请选择角色">
-              <Select.Option value="SystemAdmin">系统管理员</Select.Option>
-              <Select.Option value="ProjectManager">项目管理员</Select.Option>
-              <Select.Option value="Employee">普通员工</Select.Option>
+              <Select.Option value="PlatformAdmin">平台管理员</Select.Option>
+              <Select.Option value="ProjectManager">项目经理</Select.Option>
+              <Select.Option value="TaskExecutor">任务执行者</Select.Option>
             </Select>
           </Form.Item>
 

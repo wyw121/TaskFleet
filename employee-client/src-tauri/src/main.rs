@@ -2,11 +2,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 // TaskFleet Employee Client
-// 专注于员工任务管理的桌面客户端
+// 专注于任务管理的桌面客户端,支持多角色权限控制
 
 mod taskfleet_models;
 mod taskfleet_api;
 mod taskfleet_commands;
+mod permissions;
 
 use taskfleet_commands::*;
 
@@ -30,6 +31,7 @@ fn main() {
             login,
             logout,
             get_current_user,
+            get_user_permissions,
             // 任务命令
             get_my_tasks,
             get_task,

@@ -4,6 +4,33 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 
+// ==================== 用户角色 ====================
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum UserRole {
+    PlatformAdmin,    // 平台管理员
+    ProjectManager,   // 项目经理
+    TaskExecutor,     // 任务执行者
+}
+
+impl UserRole {
+    /// 从字符串解析角色(兼容旧值)
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            // 新的角色名称
+            "platform_admin" | "PlatformAdmin" => Some(UserRole::PlatformAdmin),
+            "project_manager" | "ProjectManager" => Some(UserRole::ProjectManager),
+            "task_executor" | "TaskExecutor" => Some(UserRole::TaskExecutor),
+            // 兼容旧的角色名称
+            "system_admin" | "SystemAdmin" => Some(UserRole::PlatformAdmin),
+            "company_admin" | "CompanyAdmin" | "user_admin" => Some(UserRole::ProjectManager),
+            "employee" | "Employee" => Some(UserRole::TaskExecutor),
+            _ => None,
+        }
+    }
+}
+
 // ==================== 认证相关 ====================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,7 +51,8 @@ pub struct User {
     pub username: String,
     pub full_name: String,
     pub email: String,
-    pub role: String,
+    pub role: UserRole,
+    pub company_id: Option<i64>,
 }
 
 // ==================== 任务相关 ====================

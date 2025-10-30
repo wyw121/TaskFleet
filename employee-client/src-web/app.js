@@ -6,6 +6,7 @@ const { invoke } = window.__TAURI__.core;
 // ==================== 应用状态 ====================
 const app = {
     currentUser: null,
+    permissions: null,  // 用户权限信息
     tasks: [],
     workLogs: [],
     activeSession: null,
@@ -98,9 +99,27 @@ async function handleLogout() {
     }
 }
 
-function initializeApp() {
-    // 显示用户信息
-    document.getElementById('user-name').textContent = app.currentUser.full_name;
+async function initializeApp() {
+    // 加载用户权限信息
+    try {
+        app.permissions = await invoke('get_user_permissions');
+        console.log('用户权限:', app.permissions);
+        
+        // 显示用户信息和角色
+        document.getElementById('user-name').textContent = app.currentUser.full_name;
+        
+        // 显示角色徽章
+        const roleBadge = document.getElementById('user-role-badge');
+        roleBadge.textContent = app.permissions.role_display;
+        roleBadge.className = `role-badge role-${app.permissions.role_color}`;
+        roleBadge.title = `当前角色: ${app.permissions.role_display}`;
+        
+        // 根据权限动态显示/隐藏功能
+        updateUIByPermissions();
+        
+    } catch (error) {
+        console.error('加载权限失败:', error);
+    }
 
     // 加载初始数据
     loadTasks();
@@ -108,6 +127,62 @@ function initializeApp() {
 
     // 开始定期刷新
     startAutoRefresh();
+}
+
+// 根据权限更新UI显示
+function updateUIByPermissions() {
+    const perms = app.permissions;
+    if (!perms) return;
+
+    // 动态添加管理功能标签页(如果有权限)
+    const tabsContainer = document.querySelector('.tabs');
+    
+    // 清除可能已存在的管理标签
+    document.querySelectorAll('.admin-tab').forEach(el => el.remove());
+    
+    // 如果可以创建任务,添加创建按钮
+    if (perms.can_create_task) {
+        const tasksTab = document.getElementById('tasks-tab');
+        const header = tasksTab.querySelector('.content-header');
+        
+        // 检查是否已存在创建按钮
+        if (!header.querySelector('#create-task-btn')) {
+            const createBtn = document.createElement('button');
+            createBtn.id = 'create-task-btn';
+            createBtn.className = 'btn btn-primary';
+            createBtn.textContent = '➕ 创建任务';
+            createBtn.onclick = () => alert('创建任务功能(待实现)');
+            header.appendChild(createBtn);
+        }
+    }
+    
+    // 如果可以查看分析,添加分析标签
+    if (perms.can_view_analytics) {
+        const analyticsTab = document.createElement('button');
+        analyticsTab.className = 'tab-btn admin-tab';
+        analyticsTab.setAttribute('data-tab', 'analytics');
+        analyticsTab.textContent = '📈 数据分析';
+        analyticsTab.onclick = () => {
+            switchTab('analytics');
+            alert('数据分析功能(待实现)');
+        };
+        tabsContainer.appendChild(analyticsTab);
+    }
+    
+    // 如果可以管理用户,添加用户管理标签
+    if (perms.can_manage_users) {
+        const usersTab = document.createElement('button');
+        usersTab.className = 'tab-btn admin-tab';
+        usersTab.setAttribute('data-tab', 'users');
+        usersTab.textContent = '👥 用户管理';
+        usersTab.onclick = () => {
+            switchTab('users');
+            alert('用户管理功能(待实现)');
+        };
+        tabsContainer.appendChild(usersTab);
+    }
+    
+    console.log('可用功能:', perms.available_features);
 }
 
 // ==================== 任务管理 ====================

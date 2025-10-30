@@ -180,6 +180,35 @@ body {
     gap: 12px;
 }
 
+/* 角色徽章 */
+.role-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+.role-badge.role-red {
+    background: #fff1f0;
+    color: #cf1322;
+    border: 1px solid #ffa39e;
+}
+
+.role-badge.role-blue {
+    background: #e6f7ff;
+    color: #0050b3;
+    border: 1px solid #91d5ff;
+}
+
+.role-badge.role-green {
+    background: #f6ffed;
+    color: #389e0d;
+    border: 1px solid #b7eb8f;
+}
+
 /* ==================== 主内容区域 ==================== */
 
 .main-content {

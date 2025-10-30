@@ -99,7 +99,7 @@ const App: React.FC = () => {
           <Route 
             path="dashboard" 
             element={
-              <ProtectedRoute allowedRoles={[UserRole.SystemAdmin, UserRole.CompanyAdmin, UserRole.Employee]}>
+              <ProtectedRoute allowedRoles={[UserRole.PlatformAdmin, UserRole.ProjectManager, UserRole.TaskExecutor]}>
                 <Dashboard />
               </ProtectedRoute>
             } 
@@ -109,7 +109,7 @@ const App: React.FC = () => {
           <Route 
             path="tasks" 
             element={
-              <ProtectedRoute allowedRoles={[UserRole.SystemAdmin, UserRole.CompanyAdmin, UserRole.Employee]}>
+              <ProtectedRoute allowedRoles={[UserRole.PlatformAdmin, UserRole.ProjectManager, UserRole.TaskExecutor]}>
                 <TaskManagement />
               </ProtectedRoute>
             } 
@@ -119,7 +119,7 @@ const App: React.FC = () => {
           <Route 
             path="projects" 
             element={
-              <ProtectedRoute allowedRoles={[UserRole.SystemAdmin, UserRole.CompanyAdmin, UserRole.Employee]}>
+              <ProtectedRoute allowedRoles={[UserRole.PlatformAdmin, UserRole.ProjectManager, UserRole.TaskExecutor]}>
                 <ProjectManagement />
               </ProtectedRoute>
             } 
@@ -129,7 +129,7 @@ const App: React.FC = () => {
           <Route 
             path="analytics" 
             element={
-              <ProtectedRoute allowedRoles={[UserRole.SystemAdmin, UserRole.CompanyAdmin]}>
+              <ProtectedRoute allowedRoles={[UserRole.PlatformAdmin, UserRole.ProjectManager]}>
                 <Analytics />
               </ProtectedRoute>
             } 
@@ -139,7 +139,7 @@ const App: React.FC = () => {
           <Route 
             path="users" 
             element={
-              <ProtectedRoute allowedRoles={[UserRole.SystemAdmin, UserRole.CompanyAdmin]}>
+              <ProtectedRoute allowedRoles={[UserRole.PlatformAdmin, UserRole.ProjectManager]}>
                 <UserManagement />
               </ProtectedRoute>
             } 

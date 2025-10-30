@@ -3,6 +3,7 @@
 
 use crate::taskfleet_api::TaskFleetApiClient;
 use crate::taskfleet_models::*;
+use crate::permissions::{Permissions, DesktopFeature};
 use std::sync::Arc;
 use tauri::State;
 use tokio::sync::Mutex;
@@ -73,6 +74,60 @@ pub async fn get_current_user(state: State<'_, AppState>) -> Result<User, String
     current_user
         .clone()
         .ok_or_else(|| "未登录".to_string())
+}
+
+/// 获取当前用户的权限信息
+#[tauri::command]
+pub async fn get_user_permissions(state: State<'_, AppState>) -> Result<UserPermissionsInfo, String> {
+    let current_user = state.current_user.lock().await;
+
+    match current_user.as_ref() {
+        Some(user) => {
+            let permissions = Permissions::new(user.role.clone());
+            Ok(UserPermissionsInfo {
+                role: user.role.clone(),
+                role_display: permissions.get_role_display_name().to_string(),
+                role_color: permissions.get_role_color().to_string(),
+                can_manage_companies: permissions.can_manage_companies(),
+                can_manage_users: permissions.can_manage_users(),
+                can_create_task: permissions.can_create_task(),
+                can_create_project: permissions.can_create_project(),
+                can_assign_tasks: permissions.can_assign_tasks(),
+                can_view_analytics: permissions.can_view_analytics(),
+                can_delete: permissions.can_delete(),
+                available_features: permissions.get_desktop_features()
+                    .iter()
+                    .map(|f| FeatureInfo {
+                        name: f.display_name().to_string(),
+                        icon: f.icon().to_string(),
+                    })
+                    .collect(),
+            })
+        }
+        None => Err("未登录".to_string()),
+    }
+}
+
+// 权限信息返回结构
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct UserPermissionsInfo {
+    pub role: UserRole,
+    pub role_display: String,
+    pub role_color: String,
+    pub can_manage_companies: bool,
+    pub can_manage_users: bool,
+    pub can_create_task: bool,
+    pub can_create_project: bool,
+    pub can_assign_tasks: bool,
+    pub can_view_analytics: bool,
+    pub can_delete: bool,
+    pub available_features: Vec<FeatureInfo>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct FeatureInfo {
+    pub name: String,
+    pub icon: String,
 }
 
 // ==================== 任务命令 ====================

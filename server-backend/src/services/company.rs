@@ -52,8 +52,8 @@ impl CompanyService {
         request: CreateCompanyRequest,
         user_role: UserRole,
     ) -> Result<CompanyInfo, AppError> {
-        // 权限检查:仅SystemAdmin可创建公司
-        if user_role != UserRole::SystemAdmin {
+        // 权限检查:仅PlatformAdmin可创建公司
+        if user_role != UserRole::PlatformAdmin {
             return Err(AppError::Forbidden);
         }
 
@@ -97,8 +97,8 @@ impl CompanyService {
         user_role: UserRole,
         user_company_id: Option<i64>,
     ) -> Result<CompanyInfo, AppError> {
-        // 权限检查:CompanyAdmin只能查看自己的公司
-        if user_role == UserRole::CompanyAdmin {
+        // 权限检查:ProjectManager只能查看自己的公司
+        if user_role == UserRole::ProjectManager {
             if user_company_id != Some(id) {
                 return Err(AppError::Forbidden);
             }
@@ -120,14 +120,14 @@ impl CompanyService {
         Ok(info)
     }
 
-    /// 获取所有公司列表(仅SystemAdmin)
+    /// 获取所有公司列表(仅PlatformAdmin)
     pub async fn list_companies(
         &self,
         user_role: UserRole,
         active_only: bool,
     ) -> Result<Vec<CompanyInfo>, AppError> {
-        // 权限检查:仅SystemAdmin可查看所有公司
-        if user_role != UserRole::SystemAdmin {
+        // 权限检查:仅PlatformAdmin可查看所有公司
+        if user_role != UserRole::PlatformAdmin {
             return Err(AppError::Forbidden);
         }
 
@@ -151,8 +151,8 @@ impl CompanyService {
         request: UpdateCompanyRequest,
         user_role: UserRole,
     ) -> Result<CompanyInfo, AppError> {
-        // 权限检查:仅SystemAdmin可更新公司
-        if user_role != UserRole::SystemAdmin {
+        // 权限检查:仅PlatformAdmin可更新公司
+        if user_role != UserRole::PlatformAdmin {
             return Err(AppError::Forbidden);
         }
 
@@ -201,14 +201,14 @@ impl CompanyService {
         Ok(CompanyInfo::from(company))
     }
 
-    /// 删除公司(仅SystemAdmin)
+    /// 删除公司(仅PlatformAdmin)
     pub async fn delete_company(
         &self,
         id: i64,
         user_role: UserRole,
     ) -> Result<(), AppError> {
-        // 权限检查:仅SystemAdmin可删除公司
-        if user_role != UserRole::SystemAdmin {
+        // 权限检查:仅PlatformAdmin可删除公司
+        if user_role != UserRole::PlatformAdmin {
             return Err(AppError::Forbidden);
         }
 
@@ -237,14 +237,14 @@ impl CompanyService {
         Ok(())
     }
 
-    /// 停用/激活公司(仅SystemAdmin)
+    /// 停用/激活公司(仅PlatformAdmin)
     pub async fn toggle_company_status(
         &self,
         id: i64,
         user_role: UserRole,
     ) -> Result<CompanyInfo, AppError> {
-        // 权限检查:仅SystemAdmin可修改公司状态
-        if user_role != UserRole::SystemAdmin {
+        // 权限检查:仅PlatformAdmin可修改公司状态
+        if user_role != UserRole::PlatformAdmin {
             return Err(AppError::Forbidden);
         }
 

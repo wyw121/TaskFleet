@@ -13,7 +13,7 @@ use std::str::FromStr;
 //    - CreateCompanyRequest/UpdateCompanyRequest: 创建/更新公司的DTO
 //    - CompanyInfo: 公司响应信息
 //
-// 1. User（用户）模型 - 系统用户，包含系统管理员、公司管理员和员工三种角色
+// 1. User（用户）模型 - 系统用户，包含平台管理员、项目经理和任务执行者三种角色
 //    - User: 用户实体
 //    - UserRole: 用户角色枚举
 //    - CreateUserRequest/UpdateUserRequest: 创建/更新用户的DTO
@@ -112,7 +112,7 @@ pub struct User {
     pub role: UserRole,
     pub full_name: String,
     pub is_active: bool,
-    pub company_id: Option<i64>,  // 所属公司ID,SystemAdmin为NULL
+    pub company_id: Option<i64>,  // 所属公司ID,PlatformAdmin为NULL
     pub parent_id: Option<i64>,  // 上级用户ID,用于层级隔离(临时方案,最终用company_id)
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -120,10 +120,11 @@ pub struct User {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum UserRole {
-    SystemAdmin,     // 系统管理员 - 可以查看和管理所有公司的所有数据
-    CompanyAdmin,    // 公司管理员 - 只能查看和管理本公司的数据
-    Employee,        // 普通员工 - 只能查看和更新自己的任务
+    PlatformAdmin,    // 平台管理员 - 可以查看和管理所有公司的所有数据
+    ProjectManager,   // 项目经理 - 只能查看和管理本公司的数据
+    TaskExecutor,     // 任务执行者 - 只能查看和更新自己的任务
 }
 
 // 手动实现sqlx类型转换,支持旧的role值
@@ -150,20 +151,22 @@ impl<'q> sqlx::Encode<'q, sqlx::Sqlite> for UserRole {
 impl UserRole {
     pub fn as_str(&self) -> &'static str {
         match self {
-            UserRole::SystemAdmin => "system_admin",
-            UserRole::CompanyAdmin => "user_admin",
-            UserRole::Employee => "employee",
+            UserRole::PlatformAdmin => "platform_admin",
+            UserRole::ProjectManager => "project_manager",
+            UserRole::TaskExecutor => "task_executor",
         }
     }
 
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
-            "system_admin" => Some(UserRole::SystemAdmin),
-            "user_admin" => Some(UserRole::CompanyAdmin),
-            "company_admin" => Some(UserRole::CompanyAdmin),
-            "employee" => Some(UserRole::Employee),
-            // 兼容旧的字符串格式
-            "project_manager" => Some(UserRole::CompanyAdmin),
+            // 新的角色名称
+            "platform_admin" => Some(UserRole::PlatformAdmin),
+            "project_manager" => Some(UserRole::ProjectManager),
+            "task_executor" => Some(UserRole::TaskExecutor),
+            // 兼容旧的角色名称
+            "system_admin" => Some(UserRole::PlatformAdmin),
+            "user_admin" | "company_admin" => Some(UserRole::ProjectManager),
+            "employee" => Some(UserRole::TaskExecutor),
             _ => None,
         }
     }
@@ -181,11 +184,15 @@ impl FromStr for UserRole {
 impl PartialEq<&str> for UserRole {
     fn eq(&self, other: &&str) -> bool {
         match (self, *other) {
-            (UserRole::SystemAdmin, "system_admin") => true,
-            (UserRole::CompanyAdmin, "user_admin") => true,
-            (UserRole::CompanyAdmin, "company_admin") => true,
-            (UserRole::CompanyAdmin, "project_manager") => true,  // 兼容
-            (UserRole::Employee, "employee") => true,
+            // 新的角色名称
+            (UserRole::PlatformAdmin, "platform_admin") => true,
+            (UserRole::ProjectManager, "project_manager") => true,
+            (UserRole::TaskExecutor, "task_executor") => true,
+            // 兼容旧的角色名称
+            (UserRole::PlatformAdmin, "system_admin") => true,
+            (UserRole::ProjectManager, "user_admin") => true,
+            (UserRole::ProjectManager, "company_admin") => true,
+            (UserRole::TaskExecutor, "employee") => true,
             _ => false,
         }
     }
@@ -194,9 +201,9 @@ impl PartialEq<&str> for UserRole {
 impl std::fmt::Display for UserRole {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UserRole::SystemAdmin => write!(f, "system_admin"),
-            UserRole::CompanyAdmin => write!(f, "user_admin"),
-            UserRole::Employee => write!(f, "employee"),
+            UserRole::PlatformAdmin => write!(f, "platform_admin"),
+            UserRole::ProjectManager => write!(f, "project_manager"),
+            UserRole::TaskExecutor => write!(f, "task_executor"),
         }
     }
 }

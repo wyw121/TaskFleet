@@ -19,45 +19,69 @@ export const usePermissions = () => {
   };
 
   /**
-   * 检查是否为系统管理员
+   * 检查是否为平台管理员
+   */
+  const isPlatformAdmin = (): boolean => {
+    return hasRole(UserRole.PlatformAdmin);
+  };
+
+  /**
+   * 检查是否为系统管理员 (兼容旧函数名)
+   * @deprecated 使用 isPlatformAdmin() 代替
    */
   const isSystemAdmin = (): boolean => {
-    return hasRole(UserRole.SystemAdmin);
+    return isPlatformAdmin();
   };
 
   /**
-   * 检查是否为公司管理员
+   * 检查是否为项目经理
+   */
+  const isProjectManager = (): boolean => {
+    return hasRole(UserRole.ProjectManager);
+  };
+
+  /**
+   * 检查是否为公司管理员 (兼容旧函数名)
+   * @deprecated 使用 isProjectManager() 代替
    */
   const isCompanyAdmin = (): boolean => {
-    return hasRole(UserRole.CompanyAdmin);
+    return isProjectManager();
   };
 
   /**
-   * 检查是否为普通员工
+   * 检查是否为任务执行者
+   */
+  const isTaskExecutor = (): boolean => {
+    return hasRole(UserRole.TaskExecutor);
+  };
+
+  /**
+   * 检查是否为普通员工 (兼容旧函数名)
+   * @deprecated 使用 isTaskExecutor() 代替
    */
   const isEmployee = (): boolean => {
-    return hasRole(UserRole.Employee);
+    return isTaskExecutor();
   };
 
   /**
-   * 检查是否有管理权限(系统管理员或公司管理员)
+   * 检查是否有管理权限(平台管理员或项目经理)
    */
   const hasAdminRole = (): boolean => {
-    return hasRole([UserRole.SystemAdmin, UserRole.CompanyAdmin]);
+    return hasRole([UserRole.PlatformAdmin, UserRole.ProjectManager]);
   };
 
   /**
    * 检查是否可以管理公司
-   * 仅系统管理员可以管理公司
+   * 仅平台管理员可以管理公司
    */
   const canManageCompanies = (): boolean => {
-    return isSystemAdmin();
+    return isPlatformAdmin();
   };
 
   /**
    * 检查是否可以管理用户
-   * 系统管理员可以管理所有用户
-   * 公司管理员可以管理自己公司的用户
+   * 平台管理员可以管理所有用户
+   * 项目经理可以管理自己公司的用户
    */
   const canManageUsers = (): boolean => {
     return hasAdminRole();
@@ -118,6 +142,11 @@ export const usePermissions = () => {
   return {
     user,
     hasRole,
+    // 新的函数名
+    isPlatformAdmin,
+    isProjectManager,
+    isTaskExecutor,
+    // 兼容旧的函数名
     isSystemAdmin,
     isCompanyAdmin,
     isEmployee,

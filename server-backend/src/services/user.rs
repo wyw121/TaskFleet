@@ -27,19 +27,19 @@ impl UserService {
     ) -> Result<Vec<UserInfo>> {
         // 根据角色返回不同范围的用户列表
         let users = match current_user.role {
-            // 系统管理员可以查看所有用户
-            UserRole::SystemAdmin => {
+            // 平台管理员可以查看所有用户
+            UserRole::PlatformAdmin => {
                 self.user_repository.list_all_hierarchy().await?
             }
-            // 公司管理员只能查看本公司用户
-            UserRole::CompanyAdmin => {
+            // 项目经理只能查看本公司用户
+            UserRole::ProjectManager => {
                 let company_id = current_user.company_id
-                    .ok_or_else(|| anyhow!("公司管理员必须关联公司"))?;
+                    .ok_or_else(|| anyhow!("项目经理必须关联公司"))?;
                 self.user_repository.list_by_company_id(company_id).await?
             }
-            // 普通员工不能查看用户列表
-            UserRole::Employee => {
-                return Err(anyhow!("权限不足：员工无法查看用户列表"));
+            // 任务执行者不能查看用户列表
+            UserRole::TaskExecutor => {
+                return Err(anyhow!("权限不足：任务执行者无法查看用户列表"));
             }
         };
 
@@ -56,16 +56,16 @@ impl UserService {
 
         // 权限检查
         match current_user.role {
-            // 系统管理员可以查看所有用户
-            UserRole::SystemAdmin => {}
-            // 公司管理员只能查看本公司用户
-            UserRole::CompanyAdmin => {
+            // 平台管理员可以查看所有用户
+            UserRole::PlatformAdmin => {}
+            // 项目经理只能查看本公司用户
+            UserRole::ProjectManager => {
                 if user.company_id != current_user.company_id {
                     return Err(anyhow!("权限不足：只能查看本公司用户"));
                 }
             }
-            // 员工只能查看自己
-            UserRole::Employee => {
+            // 任务执行者只能查看自己
+            UserRole::TaskExecutor => {
                 if user.id != current_user.id {
                     return Err(anyhow!("权限不足：只能查看自己的信息"));
                 }
@@ -82,21 +82,21 @@ impl UserService {
     ) -> Result<UserInfo> {
         // 只有管理员可以创建用户
         let (company_id, parent_id) = match current_user.role {
-            UserRole::SystemAdmin => {
-                // 系统管理员可以创建任何用户,使用请求中的company_id
+            UserRole::PlatformAdmin => {
+                // 平台管理员可以创建任何用户,使用请求中的company_id
                 (request.company_id, request.parent_id)
             }
-            UserRole::CompanyAdmin => {
-                // 公司管理员只能创建员工,且必须在自己公司
-                if request.role != UserRole::Employee {
-                    return Err(anyhow!("权限不足：公司管理员只能创建员工账号"));
+            UserRole::ProjectManager => {
+                // 项目经理只能创建任务执行者,且必须在自己公司
+                if request.role != UserRole::TaskExecutor {
+                    return Err(anyhow!("权限不足：项目经理只能创建任务执行者账号"));
                 }
                 let company_id = current_user.company_id
-                    .ok_or_else(|| anyhow!("公司管理员必须关联公司"))?;
+                    .ok_or_else(|| anyhow!("项目经理必须关联公司"))?;
                 (Some(company_id), Some(current_user.id))
             }
-            UserRole::Employee => {
-                return Err(anyhow!("权限不足：员工无法创建用户"));
+            UserRole::TaskExecutor => {
+                return Err(anyhow!("权限不足：任务执行者无法创建用户"));
             }
         };
 
@@ -155,15 +155,15 @@ impl UserService {
 
         // 权限检查
         match current_user.role {
-            UserRole::SystemAdmin => {}  // 系统管理员可以更新所有用户
-            UserRole::CompanyAdmin => {
-                // 公司管理员只能更新本公司用户
+            UserRole::PlatformAdmin => {}  // 平台管理员可以更新所有用户
+            UserRole::ProjectManager => {
+                // 项目经理只能更新本公司用户
                 if user.company_id != current_user.company_id {
                     return Err(anyhow!("权限不足：只能更新本公司用户"));
                 }
             }
-            UserRole::Employee => {
-                // 员工只能更新自己
+            UserRole::TaskExecutor => {
+                // 任务执行者只能更新自己
                 if user.id != current_user.id {
                     return Err(anyhow!("权限不足：只能更新自己的信息"));
                 }
@@ -201,8 +201,8 @@ impl UserService {
 
         if let Some(is_active) = request.is_active {
             // 只有管理员可以更改用户状态
-            if current_user.role == UserRole::Employee {
-                return Err(anyhow!("权限不足：员工无法更改用户状态"));
+            if current_user.role == UserRole::TaskExecutor {
+                return Err(anyhow!("权限不足：任务执行者无法更改用户状态"));
             }
             user.is_active = is_active;
         }
@@ -230,15 +230,15 @@ impl UserService {
 
         // 权限检查
         match current_user.role {
-            UserRole::SystemAdmin => {}  // 系统管理员可以删除任何用户
-            UserRole::CompanyAdmin => {
-                // 公司管理员只能删除本公司用户
+            UserRole::PlatformAdmin => {}  // 平台管理员可以删除任何用户
+            UserRole::ProjectManager => {
+                // 项目经理只能删除本公司用户
                 if user.company_id != current_user.company_id {
                     return Err(anyhow!("权限不足：只能删除本公司用户"));
                 }
             }
-            UserRole::Employee => {
-                return Err(anyhow!("权限不足：员工无法删除用户"));
+            UserRole::TaskExecutor => {
+                return Err(anyhow!("权限不足：任务执行者无法删除用户"));
             }
         }
 

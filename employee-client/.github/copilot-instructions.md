@@ -1,17 +1,20 @@
-# TaskFleet Employee Client - GitHub Copilot Instructions
+# TaskFleet Desktop Client - GitHub Copilot Instructions
 
 ## Project Overview
 
-TaskFleet Employee Client 是一个用于员工角色的现代化桌面 GUI 应用程序，使用 **Rust** 和 **Tauri 框架** 构建。这是 TaskFleet 任务执行专家系统的桌面客户端，提供以下功能：
+TaskFleet Desktop Client 是一个现代化桌面 GUI 应用程序，使用 **Rust** 和 **Tauri 框架** 构建。这是 TaskFleet 任务执行专家系统的桌面客户端，提供以下功能：
 
-- 员工身份验证和授权
+- 多角色身份验证和授权（平台管理员、项目经理、任务执行者）
 - 任务查看和状态更新
 - 与TaskFleet服务器实时数据同步
 - 系统托盘常驻和通知
 - 离线工作支持
 - 高效的任务管理界面
 
-**重要提醒**: 本项目使用 **Tauri 原生 GUI（Rust + HTML/CSS/JS）**，而不是 React.js 或纯 Web 框架。
+**重要提醒**: 
+1. 本项目使用 **Tauri 原生 GUI（Rust + HTML/CSS/JS）**，而不是 React.js 或纯 Web 框架。
+2. **权限完全一致**: 桌面端与Web端权限控制完全相同，功能由用户角色决定，非端类型限制。
+3. **UI简化原则**: UI精简但功能不阉割，所有API调用都经过后端权限验证。
 
 ## 核心模块架构
 
