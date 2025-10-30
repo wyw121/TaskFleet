@@ -242,6 +242,9 @@ impl Database {
         // 创建测试公司收费计划
         self.create_test_company_pricing().await?;
 
+        // 创建测试项目和任务数据
+        self.create_test_projects_and_tasks().await?;
+
         tracing::info!("✅ 数据库迁移完成");
         Ok(())
     }
@@ -479,6 +482,371 @@ impl Database {
             tracing::info!("✅ 测试公司收费计划创建完成");
         } else {
             tracing::info!("ℹ️  公司收费计划已存在，跳过创建");
+        }
+
+        Ok(())
+    }
+
+    async fn create_test_projects_and_tasks(&self) -> Result<()> {
+        tracing::info!("🔄 创建测试项目和任务数据");
+
+        // 检查是否已存在项目数据
+        let projects_count = sqlx::query("SELECT COUNT(*) as count FROM projects")
+            .fetch_one(&self.pool)
+            .await?
+            .get::<i64, _>("count");
+
+        if projects_count == 0 {
+            // 获取用户ID
+            let admin_id = sqlx::query("SELECT id FROM users WHERE username = 'admin'")
+                .fetch_one(&self.pool)
+                .await?
+                .get::<i64, _>("id");
+
+            let company_admin_1_id = sqlx::query("SELECT id FROM users WHERE username = 'company_admin_1'")
+                .fetch_one(&self.pool)
+                .await?
+                .get::<i64, _>("id");
+
+            let employee_1_id = sqlx::query("SELECT id FROM users WHERE username = 'employee_1'")
+                .fetch_one(&self.pool)
+                .await?
+                .get::<i64, _>("id");
+
+            let employee_2_id = sqlx::query("SELECT id FROM users WHERE username = 'employee_2'")
+                .fetch_one(&self.pool)
+                .await?
+                .get::<i64, _>("id");
+
+            // 创建项目（使用 UUID 作为 ID）
+            use uuid::Uuid;
+            
+            let projects = vec![
+                (
+                    Uuid::new_v4().to_string(),
+                    "TaskFleet 系统开发",
+                    "开发 TaskFleet 任务管理系统的核心功能模块",
+                    admin_id.to_string(),
+                    "in_progress",
+                    "2025-10-01",
+                    "2025-12-31",
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    "电商平台推广项目",
+                    "为客户的电商平台进行多渠道社交媒体推广",
+                    company_admin_1_id.to_string(),
+                    "in_progress",
+                    "2025-10-15",
+                    "2025-11-30",
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    "品牌营销活动",
+                    "策划并执行品牌在小红书和抖音的营销活动",
+                    company_admin_1_id.to_string(),
+                    "planning",
+                    "2025-11-01",
+                    "2025-12-15",
+                ),
+            ];
+
+            let mut project_ids = Vec::new();
+            for (id, name, description, owner_id, status, start_date, end_date) in projects {
+                sqlx::query(
+                    r#"
+                    INSERT INTO projects (id, name, description, owner_id, status, start_date, end_date, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+                    "#,
+                )
+                .bind(&id)
+                .bind(name)
+                .bind(description)
+                .bind(&owner_id)
+                .bind(status)
+                .bind(start_date)
+                .bind(end_date)
+                .execute(&self.pool)
+                .await?;
+                
+                project_ids.push((id, owner_id));
+            }
+
+            tracing::info!("✅ 测试项目创建完成，共 {} 个项目", project_ids.len());
+
+            // 创建任务
+            let tasks = vec![
+                // 项目1 (TaskFleet系统开发) - admin创建的任务
+                (
+                    Uuid::new_v4().to_string(),
+                    "设计数据库架构",
+                    "设计用户、项目、任务、工作日志等核心表结构",
+                    "completed",
+                    "high",
+                    project_ids[0].0.clone(),
+                    Some(admin_id.to_string()),
+                    admin_id.to_string(),
+                    Some("2025-10-05"),
+                    Some(16.0),
+                    Some(15.5),
+                    Some("2025-10-05 18:00:00"),
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    "实现用户认证系统",
+                    "开发JWT认证、角色权限控制等功能",
+                    "completed",
+                    "high",
+                    project_ids[0].0.clone(),
+                    Some(admin_id.to_string()),
+                    admin_id.to_string(),
+                    Some("2025-10-10"),
+                    Some(24.0),
+                    Some(26.0),
+                    Some("2025-10-11 20:00:00"),
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    "开发前端界面",
+                    "使用 React + TypeScript 开发前端管理界面",
+                    "in_progress",
+                    "high",
+                    project_ids[0].0.clone(),
+                    Some(admin_id.to_string()),
+                    admin_id.to_string(),
+                    Some("2025-10-25"),
+                    Some(40.0),
+                    Some(18.0),
+                    None,
+                ),
+                
+                // 项目2 (电商平台推广) - company_admin_1创建并分配给员工
+                (
+                    Uuid::new_v4().to_string(),
+                    "小红书账号粉丝增长",
+                    "通过互动和内容推广，目标增长5000粉丝",
+                    "in_progress",
+                    "high",
+                    project_ids[1].0.clone(),
+                    Some(employee_1_id.to_string()),
+                    company_admin_1_id.to_string(),
+                    Some("2025-10-20"),
+                    Some(30.0),
+                    Some(12.0),
+                    None,
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    "抖音直播间引流",
+                    "为电商直播间引流，目标1000人次在线观看",
+                    "pending",
+                    "medium",
+                    project_ids[1].0.clone(),
+                    Some(employee_2_id.to_string()),
+                    company_admin_1_id.to_string(),
+                    Some("2025-10-22"),
+                    Some(20.0),
+                    None,
+                    None,
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    "产品笔记创作",
+                    "撰写并发布10篇高质量产品测评笔记",
+                    "in_progress",
+                    "medium",
+                    project_ids[1].0.clone(),
+                    Some(employee_1_id.to_string()),
+                    company_admin_1_id.to_string(),
+                    Some("2025-10-25"),
+                    Some(15.0),
+                    Some(6.0),
+                    None,
+                ),
+                
+                // 项目3 (品牌营销活动) - company_admin_1创建的计划中任务
+                (
+                    Uuid::new_v4().to_string(),
+                    "市场调研分析",
+                    "分析目标用户群体和竞品策略",
+                    "pending",
+                    "high",
+                    project_ids[2].0.clone(),
+                    Some(employee_1_id.to_string()),
+                    company_admin_1_id.to_string(),
+                    Some("2025-11-05"),
+                    Some(16.0),
+                    None,
+                    None,
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    "内容创意策划",
+                    "策划30天的内容发布计划和创意方案",
+                    "pending",
+                    "medium",
+                    project_ids[2].0.clone(),
+                    Some(company_admin_1_id.to_string()),
+                    company_admin_1_id.to_string(),
+                    Some("2025-11-08"),
+                    Some(24.0),
+                    None,
+                    None,
+                ),
+                
+                // employee_1 自己创建的任务（不关联项目）
+                (
+                    Uuid::new_v4().to_string(),
+                    "学习新的推广技巧",
+                    "观看并学习最新的社交媒体营销课程",
+                    "in_progress",
+                    "low",
+                    "".to_string(), // 无项目关联
+                    Some(employee_1_id.to_string()),
+                    employee_1_id.to_string(),
+                    Some("2025-10-30"),
+                    Some(8.0),
+                    Some(3.0),
+                    None,
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    "整理工作报告",
+                    "整理本周的工作成果和数据报告",
+                    "pending",
+                    "low",
+                    "".to_string(),
+                    Some(employee_1_id.to_string()),
+                    employee_1_id.to_string(),
+                    Some("2025-10-31"),
+                    Some(4.0),
+                    None,
+                    None,
+                ),
+            ];
+
+            let mut task_ids = Vec::new();
+            for (id, title, description, status, priority, project_id, assigned_to, created_by, due_date, estimated_hours, actual_hours, completed_at) in tasks {
+                let project_id_value = if project_id.is_empty() { None } else { Some(project_id) };
+                
+                sqlx::query(
+                    r#"
+                    INSERT INTO tasks (id, title, description, status, priority, project_id, assigned_to, created_by, due_date, estimated_hours, actual_hours, completed_at, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+                    "#,
+                )
+                .bind(&id)
+                .bind(title)
+                .bind(description)
+                .bind(status)
+                .bind(priority)
+                .bind(project_id_value)
+                .bind(assigned_to)
+                .bind(created_by)
+                .bind(due_date)
+                .bind(estimated_hours)
+                .bind(actual_hours)
+                .bind(completed_at)
+                .execute(&self.pool)
+                .await?;
+                
+                task_ids.push(id);
+            }
+
+            tracing::info!("✅ 测试任务创建完成，共 {} 个任务", task_ids.len());
+
+            // 创建工作日志
+            let work_logs = vec![
+                // admin 的工作日志
+                (
+                    Uuid::new_v4().to_string(),
+                    task_ids[0].clone(), // 设计数据库架构
+                    admin_id.to_string(),
+                    "完成了用户表和权限表的设计",
+                    8.0,
+                    "2025-10-04",
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    task_ids[0].clone(),
+                    admin_id.to_string(),
+                    "完成了项目和任务表的设计及关系定义",
+                    7.5,
+                    "2025-10-05",
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    task_ids[1].clone(), // 用户认证系统
+                    admin_id.to_string(),
+                    "实现了JWT token生成和验证逻辑",
+                    10.0,
+                    "2025-10-09",
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    task_ids[2].clone(), // 前端界面
+                    admin_id.to_string(),
+                    "搭建了React项目框架，配置了路由和状态管理",
+                    9.0,
+                    "2025-10-20",
+                ),
+                
+                // employee_1 的工作日志
+                (
+                    Uuid::new_v4().to_string(),
+                    task_ids[3].clone(), // 小红书粉丝增长
+                    employee_1_id.to_string(),
+                    "完成了200个账号的关注和互动，新增粉丝150人",
+                    6.0,
+                    "2025-10-18",
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    task_ids[3].clone(),
+                    employee_1_id.to_string(),
+                    "发布了3篇互动内容，点赞收藏共计500次",
+                    6.0,
+                    "2025-10-19",
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    task_ids[5].clone(), // 产品笔记创作
+                    employee_1_id.to_string(),
+                    "完成了2篇产品测评笔记的撰写和发布",
+                    6.0,
+                    "2025-10-23",
+                ),
+                (
+                    Uuid::new_v4().to_string(),
+                    task_ids[8].clone(), // 学习新技巧
+                    employee_1_id.to_string(),
+                    "学习了短视频创作技巧课程",
+                    3.0,
+                    "2025-10-29",
+                ),
+            ];
+
+            let work_log_count = work_logs.len();
+            for (id, task_id, user_id, description, hours, work_date) in work_logs {
+                sqlx::query(
+                    r#"
+                    INSERT INTO work_logs (id, task_id, user_id, hours, notes, logged_at, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+                    "#,
+                )
+                .bind(id)
+                .bind(task_id)
+                .bind(user_id)
+                .bind(hours)
+                .bind(description)
+                .bind(work_date)
+                .execute(&self.pool)
+                .await?;
+            }
+
+            tracing::info!("✅ 测试工作日志创建完成，共 {} 条记录", work_log_count);
+        } else {
+            tracing::info!("ℹ️  测试项目数据已存在，跳过创建");
         }
 
         Ok(())
