@@ -10,6 +10,7 @@ import TaskManagement from './pages/TaskManagement'
 import ProjectManagement from './pages/ProjectManagement'
 import Analytics from './pages/Analytics'
 import UserManagement from './pages/UserManagement'
+import CompanyManagement from './pages/CompanyManagement'
 import { RootState } from './store'
 import { clearAuthState, getCurrentUser } from './store/authSlice'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -105,21 +106,21 @@ const App: React.FC = () => {
             } 
           />
           
-          {/* 任务管理 - 所有角色都可访问 */}
+          {/* 任务管理 - ProjectManager 和 TaskExecutor 可访问 */}
           <Route 
             path="tasks" 
             element={
-              <ProtectedRoute allowedRoles={[UserRole.PlatformAdmin, UserRole.ProjectManager, UserRole.TaskExecutor]}>
+              <ProtectedRoute allowedRoles={[UserRole.ProjectManager, UserRole.TaskExecutor]}>
                 <TaskManagement />
               </ProtectedRoute>
             } 
           />
           
-          {/* 项目管理 - 所有角色都可访问 */}
+          {/* 项目管理 - ProjectManager 和 TaskExecutor 可访问 */}
           <Route 
             path="projects" 
             element={
-              <ProtectedRoute allowedRoles={[UserRole.PlatformAdmin, UserRole.ProjectManager, UserRole.TaskExecutor]}>
+              <ProtectedRoute allowedRoles={[UserRole.ProjectManager, UserRole.TaskExecutor]}>
                 <ProjectManagement />
               </ProtectedRoute>
             } 
@@ -131,6 +132,16 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute allowedRoles={[UserRole.PlatformAdmin, UserRole.ProjectManager]}>
                 <Analytics />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* 公司管理 - 仅平台管理员可访问 */}
+          <Route 
+            path="companies" 
+            element={
+              <ProtectedRoute allowedRoles={[UserRole.PlatformAdmin]}>
+                <CompanyManagement />
               </ProtectedRoute>
             } 
           />

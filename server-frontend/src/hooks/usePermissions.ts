@@ -87,78 +87,198 @@ export const usePermissions = () => {
     return hasAdminRole();
   };
 
+  // ==================== 页面访问权限 ====================
+  
   /**
-   * 检查是否可以管理任务
-   * 所有角色都可以查看和管理任务
+   * 检查是否可以访问任务管理页面
+   * ProjectManager 和 TaskExecutor 可以访问
+   * PlatformAdmin 不应参与具体业务
    */
-  const canManageTasks = (): boolean => {
-    return true; // 所有已认证用户都可以
+  const canAccessTasks = (): boolean => {
+    return hasRole([UserRole.ProjectManager, UserRole.TaskExecutor]);
   };
 
   /**
-   * 检查是否可以管理项目
-   * 所有角色都可以查看和管理项目
+   * 检查是否可以访问项目管理页面
+   * ProjectManager 和 TaskExecutor 可以访问
    */
-  const canManageProjects = (): boolean => {
-    return true; // 所有已认证用户都可以
+  const canAccessProjects = (): boolean => {
+    return hasRole([UserRole.ProjectManager, UserRole.TaskExecutor]);
   };
 
   /**
    * 检查是否可以查看数据分析
-   * 仅管理员可以查看
+   * PlatformAdmin 查看全平台数据
+   * ProjectManager 查看本公司数据
    */
   const canViewAnalytics = (): boolean => {
-    return hasAdminRole();
+    return hasRole([UserRole.PlatformAdmin, UserRole.ProjectManager]);
   };
+
+  // ==================== 任务操作权限 ====================
 
   /**
    * 检查是否可以创建任务
+   * ProjectManager: 可以创建任何任务
+   * TaskExecutor: 可以创建子任务和问题反馈
    */
   const canCreateTask = (): boolean => {
-    return hasAdminRole(); // 仅管理员可以创建任务
+    return hasRole([UserRole.ProjectManager, UserRole.TaskExecutor]);
   };
 
   /**
-   * 检查是否可以创建项目
+   * 检查是否可以编辑任务
+   * ProjectManager: 可以编辑任何任务
+   * TaskExecutor: 只能编辑分配给自己的任务
+   * 需要在组件中进一步检查任务所有权
    */
-  const canCreateProject = (): boolean => {
-    return hasAdminRole(); // 仅管理员可以创建项目
+  const canEditTask = (taskAssigneeId?: number | string): boolean => {
+    if (isProjectManager()) return true;
+    if (isTaskExecutor() && user && taskAssigneeId) {
+      // 统一转换为字符串进行比较
+      return String(taskAssigneeId) === String(user.id);
+    }
+    return false;
   };
 
   /**
-   * 检查是否可以删除任务/项目
+   * 检查是否可以删除任务
+   * 仅 ProjectManager 可以删除
    */
-  const canDelete = (): boolean => {
-    return hasAdminRole(); // 仅管理员可以删除
+  const canDeleteTask = (): boolean => {
+    return isProjectManager();
   };
 
   /**
    * 检查是否可以分配任务给其他人
+   * 仅 ProjectManager 可以分配
    */
   const canAssignTasks = (): boolean => {
-    return hasAdminRole(); // 仅管理员可以分配任务
+    return isProjectManager();
+  };
+
+  /**
+   * 检查是否可以更新任务状态（开始/完成/暂停）
+   * ProjectManager 和 TaskExecutor 都可以
+   */
+  const canUpdateTaskStatus = (): boolean => {
+    return hasRole([UserRole.ProjectManager, UserRole.TaskExecutor]);
+  };
+
+  // ==================== 项目操作权限 ====================
+
+  /**
+   * 检查是否可以创建项目
+   * 仅 ProjectManager 可以创建
+   */
+  const canCreateProject = (): boolean => {
+    return isProjectManager();
+  };
+
+  /**
+   * 检查是否可以编辑项目
+   * 仅 ProjectManager 可以编辑（应只能编辑自己创建的）
+   */
+  const canEditProject = (): boolean => {
+    return isProjectManager();
+  };
+
+  /**
+   * 检查是否可以删除项目
+   * 仅 ProjectManager 可以删除（需二次确认）
+   */
+  const canDeleteProject = (): boolean => {
+    return isProjectManager();
+  };
+
+  // ==================== 用户管理权限 ====================
+
+  /**
+   * 检查是否可以创建用户
+   * PlatformAdmin: 可以创建任意公司的用户
+   * ProjectManager: 只能创建本公司的用户
+   */
+  const canCreateUser = (): boolean => {
+    return hasAdminRole();
+  };
+
+  /**
+   * 检查是否可以编辑用户
+   * PlatformAdmin: 可以编辑任意用户
+   * ProjectManager: 只能编辑本公司用户
+   */
+  const canEditUser = (): boolean => {
+    return hasAdminRole();
+  };
+
+  /**
+   * 检查是否可以删除用户
+   * PlatformAdmin: 可以删除任意用户
+   * ProjectManager: 只能删除本公司用户
+   */
+  const canDeleteUser = (): boolean => {
+    return hasAdminRole();
+  };
+
+  /**
+   * 检查是否可以查看团队成员列表
+   * ProjectManager 和 TaskExecutor 可以查看本公司成员
+   */
+  const canViewTeamMembers = (): boolean => {
+    return hasRole([UserRole.ProjectManager, UserRole.TaskExecutor]);
+  };
+
+  // ==================== 通用操作权限 ====================
+
+  /**
+   * 检查是否可以导出数据
+   * PlatformAdmin 和 ProjectManager 可以导出
+   */
+  const canExportData = (): boolean => {
+    return hasAdminRole();
   };
 
   return {
     user,
     hasRole,
-    // 新的函数名
+    
+    // 角色检查
     isPlatformAdmin,
     isProjectManager,
     isTaskExecutor,
-    // 兼容旧的函数名
-    isSystemAdmin,
-    isCompanyAdmin,
-    isEmployee,
+    isSystemAdmin,  // 兼容旧名称
+    isCompanyAdmin, // 兼容旧名称
+    isEmployee,     // 兼容旧名称
     hasAdminRole,
+    
+    // 页面访问权限
+    canAccessTasks,
+    canAccessProjects,
+    canViewAnalytics,
+    
+    // 模块管理权限
     canManageCompanies,
     canManageUsers,
-    canManageTasks,
-    canManageProjects,
-    canViewAnalytics,
+    
+    // 任务操作权限
     canCreateTask,
-    canCreateProject,
-    canDelete,
+    canEditTask,
+    canDeleteTask,
     canAssignTasks,
+    canUpdateTaskStatus,
+    
+    // 项目操作权限
+    canCreateProject,
+    canEditProject,
+    canDeleteProject,
+    
+    // 用户管理权限
+    canCreateUser,
+    canEditUser,
+    canDeleteUser,
+    canViewTeamMembers,
+    
+    // 通用权限
+    canExportData,
   };
 };

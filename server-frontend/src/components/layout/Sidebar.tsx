@@ -25,7 +25,13 @@ type MenuItem = Required<MenuProps>['items'][number];
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const dispatch = useDispatch();
-  const { canViewAnalytics, canManageUsers, canManageCompanies } = usePermissions();
+  const { 
+    canViewAnalytics, 
+    canManageUsers, 
+    canManageCompanies,
+    canAccessTasks,
+    canAccessProjects,
+  } = usePermissions();
 
   const handleLogout = () => {
     dispatch(logout() as any);
@@ -40,19 +46,25 @@ const Sidebar: React.FC = () => {
         icon: <DashboardOutlined />,
         label: <Link to="/dashboard">仪表板</Link>,
       },
-      // 任务管理 - 所有角色可访问
-      {
+    ];
+
+    // 任务管理 - ProjectManager 和 TaskExecutor 可访问
+    if (canAccessTasks()) {
+      items.push({
         key: '/tasks',
         icon: <CheckSquareOutlined />,
         label: <Link to="/tasks">任务管理</Link>,
-      },
-      // 项目管理 - 所有角色可访问
-      {
+      });
+    }
+
+    // 项目管理 - ProjectManager 和 TaskExecutor 可访问
+    if (canAccessProjects()) {
+      items.push({
         key: '/projects',
         icon: <ProjectOutlined />,
         label: <Link to="/projects">项目管理</Link>,
-      },
-    ];
+      });
+    }
 
     // 数据分析 - 仅管理员可见
     if (canViewAnalytics()) {
@@ -96,7 +108,7 @@ const Sidebar: React.FC = () => {
     );
 
     return items;
-  }, [canViewAnalytics, canManageUsers, canManageCompanies, handleLogout]);
+  }, [canViewAnalytics, canManageUsers, canManageCompanies, canAccessTasks, canAccessProjects, handleLogout]);
 
   return (
     <div style={{ 

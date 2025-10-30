@@ -132,6 +132,26 @@ impl Database {
         .execute(&self.pool)
         .await?;
 
+        // 创建公司表
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS companies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                code TEXT UNIQUE NOT NULL,
+                description TEXT,
+                contact_email TEXT,
+                contact_phone TEXT,
+                max_employees INTEGER DEFAULT 10,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
         // 创建公司收费计划表
         sqlx::query(
             r#"
@@ -212,6 +232,9 @@ impl Database {
 
         // 创建测试用户（仅在开发环境）
         self.create_test_users().await?;
+
+        // 创建测试公司数据
+        self.create_test_companies().await?;
 
         // 创建测试价格规则
         self.create_test_pricing_rules().await?;
@@ -343,6 +366,48 @@ impl Database {
             tracing::info!("   - employee_1, employee_2, employee_3 (密码: admin123)");
         } else {
             tracing::info!("ℹ️  测试用户已存在，跳过创建");
+        }
+
+        Ok(())
+    }
+
+    async fn create_test_companies(&self) -> Result<()> {
+        tracing::info!("🔄 创建测试公司数据");
+
+        // 检查是否已存在公司数据
+        let companies_count = sqlx::query("SELECT COUNT(*) as count FROM companies")
+            .fetch_one(&self.pool)
+            .await?
+            .get::<i64, _>("count");
+
+        if companies_count == 0 {
+            // 创建默认测试公司
+            let companies = vec![
+                ("测试公司A", "company_001", "这是测试公司A", "companyA@example.com", "13800000001", 20),
+                ("测试公司B", "company_002", "这是测试公司B", "companyB@example.com", "13800000002", 15),
+            ];
+
+            for (name, code, description, email, phone, max_employees) in companies {
+                sqlx::query(
+                    r#"
+                    INSERT INTO companies (name, code, description, contact_email, contact_phone, max_employees, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    "#,
+                )
+                .bind(name)
+                .bind(code)
+                .bind(description)
+                .bind(email)
+                .bind(phone)
+                .bind(max_employees)
+                .bind(true)
+                .execute(&self.pool)
+                .await?;
+            }
+
+            tracing::info!("✅ 测试公司数据创建完成");
+        } else {
+            tracing::info!("ℹ️  公司数据已存在，跳过创建");
         }
 
         Ok(())
