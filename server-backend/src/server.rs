@@ -82,12 +82,12 @@ pub async fn create_app(database: Database, config: Config) -> Router {
         .route("/api/v1/companies/:id", delete(handlers::company::delete_company))
         .route("/api/v1/companies/:id/toggle-status", post(handlers::company::toggle_company_status))
         
-        // 任务管理 API (临时实现：返回空数组避免404)
-        .route("/api/v1/tasks", get(handlers::tasks_temp::list_tasks))
-        .route("/api/v1/tasks/:id", get(handlers::tasks_temp::get_task))
-        .route("/api/v1/tasks", post(handlers::tasks_temp::create_task))
-        .route("/api/v1/tasks/:id", put(handlers::tasks_temp::update_task))
-        .route("/api/v1/tasks/:id", delete(handlers::tasks_temp::delete_task))
+        // 任务管理 API
+        .route("/api/v1/tasks", get(handlers::tasks::list_tasks))
+        .route("/api/v1/tasks/:id", get(handlers::tasks::get_task))
+        .route("/api/v1/tasks", post(handlers::tasks::create_task))
+        .route("/api/v1/tasks/:id", put(handlers::tasks::update_task))
+        .route("/api/v1/tasks/:id", delete(handlers::tasks::delete_task))
         
         // 项目管理 API (临时实现：返回空数组避免404)
         .route("/api/v1/projects", get(handlers::projects_temp::list_projects))

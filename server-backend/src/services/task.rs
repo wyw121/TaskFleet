@@ -29,6 +29,7 @@ impl TaskService {
         Ok(TaskInfo::from(task))
     }
 
+
     /// 获取任务详情
     pub async fn get_task(&self, id: Uuid) -> Result<TaskInfo, AppError> {
         let task = self.task_repo.find_by_id(id).await?

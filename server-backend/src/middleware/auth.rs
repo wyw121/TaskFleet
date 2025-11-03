@@ -51,11 +51,12 @@ impl AuthLayer {
 
         // 创建认证上下文
         let auth_context = AuthContext {
-            user: user.into(),
-            claims,
+            user: user.clone().into(),
+            claims: claims.clone(),
         };
 
-        // 将认证上下文添加到请求扩展中
+        // 将User和认证上下文添加到请求扩展中
+        request.extensions_mut().insert(user); // ✅ 添加User供handlers使用
         request.extensions_mut().insert(auth_context);
 
         Ok(next.run(request).await)
